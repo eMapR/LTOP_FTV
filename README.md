@@ -569,7 +569,7 @@ the output of the interpreter data.
 
 		to drive task
 
-#### 27 Download LTOP imagery (Moving Data)
+#### 27 Download LTOP imagery (Moving Data)- optional if you're working with assets in the previous step. 
 
 	0. Open terminal on Islay in a VNC
 
@@ -594,3 +594,16 @@ the output of the interpreter data.
 
 		./LTOP_Oregon/rasters/01_SNIC/
 
+#### 28 Use the LTOP breakpoints/vertices outputs to create fitted images using another image stack. 
+
+	1) script location
+		"/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/GEEjs/06lt_TransferFTV.js"
+
+	2) Edit and review- you need to change: 
+		-LTOP outputs (now inputs)
+		-imageCollection you want to use for fitting
+		-user params including the start year and band name
+
+	3) run script
+
+	4) run task? need to decide where that's going

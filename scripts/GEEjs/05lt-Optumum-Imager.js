@@ -20,16 +20,18 @@
 
 //var aoi = ee.FeatureCollection("TIGER/2018/States").filterMetadata("NAME","equals","Oregon").geometry().buffer(5000);
 var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA','Laos')).geometry().buffer(5000);
-
+Map.addLayer(aoi,{},'aoi')
 var cluster_image = ee.Image("users/ak_glaciers/LTOP_Laos_Kmeans_Cluster_Image")
-
+Map.addLayer(cluster_image,{},'cluster image')
 var table = ee.FeatureCollection("users/ak_glaciers/LTOP_Laos_config_selected");
+
+print(table.first())
 
 //////////////////////////////////////////////////////////
 //////////////////Import Modules ////////////////////////////
 ////////////////////////// /////////////////////////////
 
-var ltgee = require('users/emaprlab/broberts:LTOP_mekong/LandTrendr_V2.4.js'); 
+//var ltgee = require('users/emaprlab/broberts:LTOP_mekong/LandTrendr_V2.4.js'); 
 
 
 
@@ -76,7 +78,7 @@ var ndvi_table = lookUpList.filter(filter_ndvi)
 var tcg_table = lookUpList.filter(filter_tcg)
 var tcw_table = lookUpList.filter(filter_tcw)
 
-print(nbr_table) // nbr look up list
+//print(nbr_table) // nbr look up list
 ///////////////////////////////////////////////////////////
 /////////////Surface Image Collection//////////////////////
 ///////////////////////////////////////////////////////////
@@ -94,7 +96,7 @@ var annualLTcollectionNDVI = ltgee.buildLTcollection(annualSRcollection, 'NDVI',
 var annualLTcollectionTCW = ltgee.buildLTcollection(annualSRcollection, 'TCW', ["TCW"]).select(["TCW","ftv_tcw"],["TCW","ftv_ltop"]); 
 var annualLTcollectionTCG = ltgee.buildLTcollection(annualSRcollection, 'TCG', ["TCG"]).select(["TCG","ftv_tcg"],["TCG","ftv_ltop"]); 
 var annualLTcollectionB5 = ltgee.buildLTcollection(annualSRcollection, 'B5', ["B5"]).select(["B5","ftv_b5"],["B5","ftv_ltop"]); 
-print(annualLTcollectionNBR)
+//print(annualLTcollectionNBR)
 
 /////////////////////////////////////////////////////////
 ///////Apply Select Parameter to Clusters (B5)/////////// 
@@ -207,7 +209,7 @@ var printerNBR = nbr_table.map(function(feat){
   // blank
   var maskcol;
 
-  //maps over image collection appling the mask to each image
+  //maps over image collection applying the mask to each image
   maskcol = annualLTcollectionNBR.map(function(img){
     var out = img.mask(ee.Image(masktesting)).set('system:time_start', img.get('system:time_start'));
     return out
@@ -419,12 +421,12 @@ var printerTCW = tcw_table.map(function(feat){
 })
 
 
-print(printerTCW)
+//print(printerTCW)
 
 // concat each indice print output together
 var printer = printerB5.cat(printerNBR).cat(printerNDVI).cat(printerTCG).cat(printerTCW)
 
-print(printer)
+//print(printer)
 
 //Mosaic each LandTrendr run in list to single image collection
 var ltcol = ee.ImageCollection(printer).mosaic()
@@ -461,11 +463,11 @@ Map.addLayer(lt_vert,{},'lt_vert')
 // Map.addLayer(annualLTcollectionTCG,{},'annualLTcollection')
 /////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////// 
 Export.image.toAsset({
   image: lt_vert,
-  description: 'Optimized_LandTrendr_year_vert_array',
-  assetId: 'Optimized_LandTrendr_year_vert_array',
+  description: 'Optimized_LandTrendr_year_vert_array_ben',
+  assetId: 'Optimized_LandTrendr_year_vert_array_ben',
   region: aoi,
   scale: 30,
   maxPixels: 10000000000000
