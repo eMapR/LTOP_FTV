@@ -56,7 +56,7 @@ var geometry2 =
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-Map.centerObject(geometry4,14)
+Map.centerObject(geometry4,12); 
 //inputs and user specified args (NOTE: change the geometry we're clipping to, currently just set up as a test)
 var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA','Laos')).geometry().buffer(5000);
 //kmeans cluster image
@@ -84,13 +84,6 @@ var min_obvs = ee.Number(lt_vert.bandNames().length()).getInfo();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-//get the servir ic
-// Map.addLayer(lt_vert,{},'original data')
-// Map.addLayer(servir_ic,{},'servir')
-//do a little test to see what happens when we have an input array and image collection that are quite different sizes
-// servir_ic = servir_ic.filter(ee.Filter.inList('system:index',['2003','2004','2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019','2020'])); 
-// print(servir_ic, 'after filtering')
-
 //next we need to set up a thing that gets the bp years between two end point years. In the case that there is no bp in the start year
 //we need to set that as a breakpoint so the time series is bookended when we do the fit 
 
@@ -158,11 +151,9 @@ var masked_ic = spike_masks.map(function(msk){
     });
   return lt_servir; 
 }); 
-
+//this is a multiband image with fitted bands
 var combined = masked_ic.mosaic(); 
-print(spike_masks.first(),'spiked')
-// Map.addLayer(combined,{},'combined'); 
-print(combined,'combined')
+print(combined,'LT fit output')
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 //convert the outputs of LT fit to look like the outputs of LT premium. This is a 2D array that has four rows 
 //(year list,source value, fitted value and a boolean isVertex row) and as many columns as there are observation years. 
@@ -174,15 +165,15 @@ var ftv = combined.select(['swir1_fit']);
 var years = ee.List.sequence(startYear,endYear,1);
 //define a function that makes a list of constant images 
 var mk_duplicate_imgs = function(x){
-  return ee.Image.constant(x)
+  return ee.Image.constant(x); 
 }; 
 var yrs_img = years.map(mk_duplicate_imgs); 
 //create an array image of years
-yrs_img = ee.ImageCollection.fromImages(yrs_img).toBands().toArray()
+yrs_img = ee.ImageCollection.fromImages(yrs_img).toBands().toArray(); 
 
 //now create the source values- we don't have these so fill with a noData value 
-var source_vals = ee.Image.constant(-9999).toArray()
-source_vals = source_vals.arrayRepeat(0,years.length())
+var source_vals = ee.Image.constant(-9999).toArray(); 
+source_vals = source_vals.arrayRepeat(0,years.length()); 
 
 //next we create the isVertex row of the table. This has a one if the year is a breakpoint and 0 if not
 //there has to be a better way to do this
@@ -226,17 +217,47 @@ var arr2 = ftv.toArray().arrayCat(isVertex,1);
 //also rename the default array band to match the outputs of premium Landtrendr for the disturbance mapping 
 var lt_out = arr1.arrayCat(arr2,1).arrayTranspose(); 
 lt_out = lt_out.addBands(ee.Image.constant(1)).select(['array','constant'],['LandTrendr','rmse'])
-// Map.addLayer(ftv,{},'ftv')
-// Map.addLayer(yrs_img,{},'yrs')
-// Map.addLayer(source_vals,{},'source vals')
-Map.addLayer(lt_out,{},'lt premium')
-// print(lt_out,'output')
 
-//export some outputs 
-Export.image.toAsset({
-  image:lt_out, 
-  description:'swir1_fit_premium_LT_like_output', 
-  assetId:'swir1_fit_premium_LT_like_output', 
-  region:geometry3,
-  scale:30
-}); 
+Map.addLayer(lt_out,{},'premium LT output')
+
+
+///////////////////////////////////////////////////////////////////////////////////
+//make a change detection map using the LandTrendr modules 
+var changeParams = {
+  delta:  'loss',
+  sort:   'greatest',
+  year:   {checked:true, start:2000, end:2020},
+  mag:    {checked:true, value:10,  operator:'>'},
+  dur:    {checked:true, value:4,    operator:'<'},
+  preval: {checked:true, value:300,  operator:'>'},
+  mmu:    {checked:true, value:1},
+};
+
+//this is an issue because we used different fitting indices and so the changeParams are adjusted according to that...
+var index = 'B5';
+
+// add index to changeParams object
+changeParams.index = index;
+
+// get the change map layers
+var changeImg = ltgee.getChangeMap(lt_out, changeParams);
+
+print(changeImg)
+
+// set visualization dictionaries
+var palette = ['#9400D3', '#4B0082', '#0000FF', '#00FF00', '#FFFF00', '#FF7F00', '#FF0000'];
+var yodVizParms = {
+  min: startYear,
+  max: endYear,
+  palette: palette
+};
+
+var magVizParms = {
+  min: 200,
+  max: 800,
+  palette: palette
+};
+
+// display the change attribute map - note that there are other layers - print changeImg to console to see all
+Map.addLayer(changeImg.select(['mag']), magVizParms, 'Magnitude of Change');
+Map.addLayer(changeImg.select(['yod']), yodVizParms, 'Year of Detection');
