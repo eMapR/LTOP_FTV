@@ -571,39 +571,49 @@ the output of the interpreter data.
 
 #### 27 Download LTOP imagery (Moving Data)- optional if you're working with assets in the previous step. 
 
-	0. Open terminal on Islay in a VNC
+	0) Open terminal on Islay in a VNC
 
 
-	1. Script location 
+	1) Script location 
 
 		./LTOP_Oregon/scripts/GEEjs/
 
-	2. Activate conda environment “py35”
+	2) Activate conda environment “py35”
 
 		conda activate py35
 
-	3. Python script syntax
+	3) Python script syntax
 
 		python 00_get_chunks_from_gdrive.py <google drive folder name> <local directory>
 
-	4. Run script 
+	4) Run script 
 
 		python 00_get_chunks_from_gdrive.py LTOP_Oregon_image_withVertYrs_NBR /LTOP_Oregon/rasters/04_LTOP_Image_NBR/
 		
-	5. Check data at download destination. 
+	5) Check data at download destination. 
 
 		./LTOP_Oregon/rasters/01_SNIC/
 
-#### 28 Use the LTOP breakpoints/vertices outputs to create fitted images using another image stack. 
+#### 28 Use the LTOP breakpoints/vertices outputs to create fitted Landtrendr like outputs. This uses vertices from the LTOP process and the LT-fit algorithm. This step may become optional if the same images are used for the LTOP process and change detection. 
 
 	1) script location
 		"/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/GEEjs/06lt_TransferFTV.js"
 
-	2) Edit and review- you need to change: 
-		-LTOP outputs (now inputs)
-		-imageCollection you want to use for fitting
-		-user params including the start year and band name
+	2) Edit and review user inputs. There are quite a few and they are described in detail at the top of the script. 
 
 	3) run script
 
-	4) run task? need to decide where that's going
+	4) Run task to export a fitted array image to an asset. 
+
+#### 29 Use the FTV outputs to create change detection maps using existing change map modules from the public LandTrendr.js scripts. This either takes the outputs of 28 above or the LTOP outputs need to be amended to create these images that mimic the regular LT outputs. 
+
+	1) script location: 
+		"/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/GEEjs/07_Optimized_change_detection.js"
+
+	2) Edit and review the user inputs. These are outlined at the beginning of the script. 
+
+	3) check that the outputs are correctly specified
+
+	4) run script 
+
+	5) run task to export a change detection map

@@ -1,14 +1,16 @@
 
-var table = ee.FeatureCollection("users/emaprlab/LTOP_Oregon_Kmeans_Cluster_ID_reps")
-var ltgee = require('users/clarype/emapr:Development/LandTrendr_V2.5D.js');
+var table = ee.FeatureCollection("users/ak_glaciers/LTOP_laos_kmeans_cluster_ids_subsetted")
+var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
 
 function main () {
   
   // Define the start and the start and end year of the image time series
   var start_year = 1999;
   var end_year = 2020;
-  var startDay = '06-20'; 
-  var endDay = '09-10'; 
+  var startDay = '11-20'; 
+  var endDay =   '03-10';
+  // var startDay = '06-20'; 
+  // var endDay = '09-10'; 
   var maskThese = ['cloud','shadow', 'snow']
   
   // Define a feature Collection of the points that need to be extracted
@@ -41,8 +43,9 @@ function main () {
   // Export the points
   Export.table.toDrive({
     collection: outputs, 
-    description: "LTOP_Oregon_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_v1", 
-    fileNamePrefix: "LTOP_Oregon_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_v1", 
+    description: "LTOP_Laos_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_v1", 
+    fileNamePrefix: "LTOP_Laos_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_v1", 
+    folder:'Laos_kmeans',
     fileFormat: 'csv'
   });
   

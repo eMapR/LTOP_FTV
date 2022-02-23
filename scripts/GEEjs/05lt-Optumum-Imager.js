@@ -20,12 +20,13 @@
 
 //var aoi = ee.FeatureCollection("TIGER/2018/States").filterMetadata("NAME","equals","Oregon").geometry().buffer(5000);
 var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA','Laos')).geometry().buffer(5000);
-Map.addLayer(aoi,{},'aoi')
+//Map.addLayer(aoi,{},'aoi')
 var cluster_image = ee.Image("users/ak_glaciers/LTOP_Laos_Kmeans_Cluster_Image")
 Map.addLayer(cluster_image,{},'cluster image')
 var table = ee.FeatureCollection("users/ak_glaciers/LTOP_Laos_config_selected");
 
-print(table.first())
+
+//print(table.first())
 
 //////////////////////////////////////////////////////////
 //////////////////Import Modules ////////////////////////////
@@ -38,7 +39,7 @@ print(table.first())
 //////////////////////////////////////////////////////////
 //////////////////Import Modules ////////////////////////////
 ////////////////////////// /////////////////////////////
-
+// note that as of 2/3/2022 this is still based on collection 1, this will need to be updated
 var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js');
 
 // var cluster_image = ee.Image("users/emaprlab/SERVIR/v1/clusterSNICimage_32nd_v1_5000_clipped"),

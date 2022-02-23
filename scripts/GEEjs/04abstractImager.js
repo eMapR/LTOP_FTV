@@ -4,7 +4,7 @@
 //////////////////////////////////
 
 // Landtrendr test module
-var ltgee = require('users/emaprlab/broberts:LTOP_mekong/LandTrendr_V2.4.js'); 
+var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
 
 // Load in the Abstract image collection. This made from tiff_v7
 var images = ee.ImageCollection("users/ak_glaciers/abstract_images/laos_abstract_images_ic");
@@ -15,7 +15,7 @@ var id_points = ee.FeatureCollection('users/ak_glaciers/abstract_images/abstract
 // Rename the bands (can't upload with names as far as I can tell)
 images = images.select(['b1','b2','b3','b4','b5'],['NBR', 'NDVI', 'TCG', 'TCW', 'B5']);
 
-var indexname = "TCW"
+var indexname = "B5"
 
 // Add a time stamp to each image
 images = images.map(add_time_stamp);

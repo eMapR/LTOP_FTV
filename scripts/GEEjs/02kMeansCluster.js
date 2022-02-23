@@ -10,24 +10,28 @@
 //         Robert Kennedy | rkennedy@coas.oregonstate.edu
 // website: https://github.com/eMapR/LT-GEE
 
+//Note: this has been modified to run for SE asia
 
 //////////////////Import Modules ////////////////////////////
-var ltgee = require('users/emaprlab/public:LT-data-download/LandTrendr_V2.4.js'); 
+var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
 
 /////////////////////Cambodia vector////////////////////////////
 //Centers the map on spatial features 
-var aoi = ee.FeatureCollection("TIGER/2018/States").filterMetadata("NAME","equals","Oregon").geometry().buffer(5000);
+var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA','Laos')).geometry().buffer(5000);
+//ee.FeatureCollection("TIGER/2018/States").filterMetadata("NAME","equals","Oregon").geometry().buffer(5000);
 
 Map.centerObject(aoi)
 //Map.addLayer(aoi)
 
 ////////////////////params//////////////////////////
 var startYear = 1999; 
-var endYear = 2020; 
-var startDate = '06-20'; 
-var endDate =   '09-10'; 
+var endYear = 2020;
+var startDate = '11-20'; 
+var endDate =   '03-10';
+// var startDate = '06-20'; 
+// var endDate =   '09-10'; 
 var masked = ['cloud', 'shadow', 'snow'] // Image masking options ie cloud option tries to remove clouds from the imagery. powermask in new and has magic powers ... RETURN TO THIS AND ADD MORE DETAIL
-var folder = "LTOP_Oregon_Kmeans_v1" 
+var folder = "LTOP_Laos_Kmeans_v1" 
 var description = "Kmeans_v1"
 
 ////////////////////////Landsat Composites///////////////////////////////
@@ -71,7 +75,8 @@ var snicImagey = ee.Algorithms.Image.Segmentation.SNIC({
   }).clip(aoi);
   
 /////////////////10k sample ////////////////////////////STEP 2
-var sample75k = ee.FeatureCollection("users/emaprlab/03_snic_seed_pixel_points_attributted_random_subset_75k");
+//pull in the subsampled and attributed 75k points
+var sample75k = ee.FeatureCollection("users/ak_glaciers/snic_seed_pixels_75k_pts_w_attributes");
 Map.addLayer(sample75k)
 print(sample75k.first())
 
@@ -113,7 +118,7 @@ var clusterSeed = SNIC_means_seed.cluster(training).clip(aoi);
 Export.image.toAsset({
         image:clusterImage, 
         description: description, 
-        assetId: "LTOP_Oregon_Kmeans_Cluster_Image", 
+        assetId: "LTOP_Laos_Kmeans_Cluster_Image", 
         region:aoi, 
         scale:30, 
         maxPixels: 1e13 
@@ -123,7 +128,7 @@ Export.image.toDrive({
         image:clusterSeed, 
         description: description, 
         folder:folder, 
-        fileNamePrefix: "LTOP_Oregon_seed_", 
+        fileNamePrefix: "LTOP_Laos_seed_", 
         region:aoi, 
         scale:30, 
         maxPixels: 1e13 
