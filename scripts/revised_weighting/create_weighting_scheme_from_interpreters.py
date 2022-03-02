@@ -9,9 +9,13 @@ import numpy as np
 
 """This script is used to calculate a weighting scheme based on data collected by eMapr interpreters"""
 
-def calc_weights(fn,vert='rankVscore', AIC='rankAICc', id_col = 'cluster_id', total=720, seed=52): 
+def calc_weights(fn,vert='rankVscore', AIC='rankAICc', id_col = 'cluster_id', total=720, seed=52, remove_ids=['10.249.247.4']): 
 	"""Takes the output of interpreters work and calculates weights from pareto curve."""
 	df = pd.read_csv(fn)
+	
+	#remove obvs from Robert or others
+	print('the dtypes are: ')
+	print(df.dtypes)
 	#calc weights 
 	df['vWeight'] = df[vert]/total#(df[vert]/(df[vert]+df[AIC]))
 	df['aicWeight'] = df[AIC]/total#(df[AIC]/(df[AIC]+df[vert]))

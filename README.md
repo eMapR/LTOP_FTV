@@ -16,7 +16,7 @@ NOTE: The below work flow is of a Oregon test region. So file paths to data sets
 
 #### 1 Run 01SNICPatches in GEE to generate SNIC images (GEE)
 
-First, we want to break up an image into spectrally similar chucks, patches of pixels that are like one another. These could be pixels that make up a pond or a stand of forest. This is what the SNIC script does for us. One thing to note is that ever patch is independent of the other patches even if two patches represent the same land class. From this script we get a seed image, which represents the starting point of each patch. The Seed Image has several bands pretaining to mean spectral values of that Seed's patch. For something the size of Laos, this should take about an hour to run. 
+First, we want to break up an image into spectrally similar chucks, patches of pixels that are like one another. These could be pixels that make up a pond or a stand of forest. This is what the SNIC script does for us. One thing to note is that every patch is independent of the other patches even if two patches represent the same land class. From this script we get a seed image, which represents the starting point of each patch. The Seed Image has several bands pretaining to mean spectral values of that Seed's patch. For something the size of Laos, this should take about an hour to run. 
 
 	0. Script location
 
@@ -24,7 +24,7 @@ First, we want to break up an image into spectrally similar chucks, patches of p
 
 	1. Copy and paste script in GEE console 
 	
-	2. Make sure you all needed dependencies (emapr GEE account has all dependencies) 
+	2. Make sure you have all needed dependencies (emapr GEE account has all dependencies) 
 
 	3. Review in script parameters. Lines 35-39, lines 47-49 (SNIC years), lines 83,84 (SNIC)
 
