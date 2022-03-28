@@ -58,15 +58,15 @@ if __name__ == "__main__":
     ######################## PARAMETERS TO BE SET BY USER ####################
     
     # Load in the "abstract images" csv
-    input_data = pd.read_csv("/vol/v1/proj/LTOP_mekong/csvs/LTOP_Laos_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_v1.csv")
+    input_data = pd.read_csv("/vol/v1/proj/LTOP_mekong/csvs/01_abstract_images/LTOP_cambodia_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_c2_1990_start.csv")
     
     # Define the output directory for the abstract images and the shapefile
-    output_directory_raster = "/vol/v1/proj/LTOP_mekong/rasters/03_AbstractImage/"
-    output_directory_shp = "/vol/v1/proj/LTOP_mekong/vectors/03_abstract_image_pixel_points/"
+    output_directory_raster = "/vol/v1/proj/LTOP_mekong/rasters/03_AbstractImage/cambodia/"
+    output_directory_shp = "/vol/v1/proj/LTOP_mekong/vectors/03_abstract_image_pixel_points/cambodia/"
     
     # Define the output number of rows and columns
-    num_rows = 50
-    num_cols = 100
+    num_rows = 1
+    num_cols = 209
     
     ##########################################################################
     

@@ -16,44 +16,47 @@ import os
 import sys
 import numpy as np
 
-shp_file_path = "/vol/v1/proj/LTOP_mekong/vectors/02_Kmeans/LTOP_laos_kmeans_cluster_ids.shp"
-out_file_path = "/vol/v1/proj/LTOP_mekong/vectors/02_Kmeans/LTOP_laos_kmeans_cluster_ids_subsetted.shp"
+shp_file_path = "/vol/v1/proj/LTOP_mekong/vectors/02_Kmeans/LTOP_cambodia_1999_cluster_ids.shp"
+out_file_path = "/vol/v1/proj/LTOP_mekong/vectors/02_Kmeans/LTOP_cambodia_kmeans_cluster_ids_subsetted.shp"
 
 shp_df = gpd.read_file(shp_file_path)
 
-# add two new fields to dataframe 
-shp_df['rdmNum'] = 0
-shp_df['rep'] = 0
+print(len(shp_df.cluster_id.unique()))
+print(shp_df.head())
+print(shp_df.columns) 
+# # add two new fields to dataframe 
+# shp_df['rdmNum'] = 0
+# shp_df['rep'] = 0
 
-# find the min and max value in the cluster_id field.
-cluster_id_max = shp_df['cluster_id'].max()
-cluster_id_min = shp_df['cluster_id'].min()
-
-
-list_min_df = []
-
-for cluster in list(range(int(cluster_id_min), int(cluster_id_max)+1)):
-
-	shp_df_temp = shp_df[shp_df['cluster_id'] == cluster]
-
-	shp_df_temp["rdmNum"] = np.random.randint(1,1000000000, size=len(shp_df_temp))
-
-	shp_df_temp_min = shp_df_temp[shp_df_temp["rdmNum"] == shp_df_temp["rdmNum"].min()]
-
-	list_min_df.append(shp_df_temp_min)
+# # find the min and max value in the cluster_id field.
+# cluster_id_max = shp_df['cluster_id'].max()
+# cluster_id_min = shp_df['cluster_id'].min()
 
 
-out_gdf = gpd.GeoDataFrame(pd.concat(list_min_df, ignore_index=True))
-out_gdf.to_file(out_file_path)
+# list_min_df = []
 
-# add a random number to each row in a sudsetted dataframe
+# for cluster in list(range(int(cluster_id_min), int(cluster_id_max)+1)):
 
-#select a subset of the dataframe 
+# 	shp_df_temp = shp_df[shp_df['cluster_id'] == cluster]
 
-# add a 1 to the row in the subset with the lowest random number 
+# 	shp_df_temp["rdmNum"] = np.random.randint(1,1000000000, size=len(shp_df_temp))
 
-# repeat for each subset 
+# 	shp_df_temp_min = shp_df_temp[shp_df_temp["rdmNum"] == shp_df_temp["rdmNum"].min()]
 
-# select the row with the 1 value 
+# 	list_min_df.append(shp_df_temp_min)
 
-# save that subset of 1s to a shp file
+
+# out_gdf = gpd.GeoDataFrame(pd.concat(list_min_df, ignore_index=True))
+# out_gdf.to_file(out_file_path)
+
+# # add a random number to each row in a sudsetted dataframe
+
+# #select a subset of the dataframe 
+
+# # add a 1 to the row in the subset with the lowest random number 
+
+# # repeat for each subset 
+
+# # select the row with the 1 value 
+
+# # save that subset of 1s to a shp file
