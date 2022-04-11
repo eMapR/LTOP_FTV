@@ -15,9 +15,9 @@ def calc_weights(fn,vert='rankVscore', AIC='rankAICc', id_col = 'cluster_id', to
 	df = pd.read_csv(fn)
 	
 	#remove Robert's interpretations or another selected user 
-	print(df.dtypes)
+	# print(df.dtypes)
 	df = df.loc[df['user'] != remove_ids] #field is hardcoded
-	df = df.loc[df['confidence'] != 1.0]
+
 	#calc weights 
 	df['vWeight'] = df[vert]/total#(df[vert]/(df[vert]+df[AIC]))
 	df['aicWeight'] = df[AIC]/total#(df[AIC]/(df[AIC]+df[vert]))
