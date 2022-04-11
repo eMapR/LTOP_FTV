@@ -1,11 +1,11 @@
 
-var table = ee.FeatureCollection("users/ak_glaciers/LTOP_laos_kmeans_cluster_ids_subsetted")
+var table = ee.FeatureCollection("users/ak_glaciers/LTOP_cambodia_kmeans_cluster_ids_1990_start_subsetted")
 var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
 
 function main () {
   
   // Define the start and the start and end year of the image time series
-  var start_year = 1999;
+  var start_year = 1990;
   var end_year = 2020;
   var startDay = '11-20'; 
   var endDay =   '03-10';
@@ -43,9 +43,9 @@ function main () {
   // Export the points
   Export.table.toDrive({
     collection: outputs, 
-    description: "LTOP_Laos_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_v1", 
-    fileNamePrefix: "LTOP_Laos_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_v1", 
-    folder:'Laos_kmeans',
+    description: "LTOP_cambodia_Abstract_Sample_annualSRcollection_NBRTCWTCGNDVIB5_c2_1990_start", 
+    fileNamePrefix: "LTOP_cambodia_Abstract_Sample_annualSRcollection_NBRTCWTCGNDVIB5_c2_1990_start", 
+    folder:'cambodia_abstract_image',
     fileFormat: 'csv'
   });
   

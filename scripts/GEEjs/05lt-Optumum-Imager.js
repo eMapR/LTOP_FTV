@@ -5,8 +5,9 @@
 //########################################################################################################
 
 // date: 2020-12-10
-// author: Peter Clary    | clarype@oregonstate.edu
-//         Robert Kennedy | rkennedy@coas.oregonstate.edu
+// author: Peter Clary        | clarype@oregonstate.edu
+//         Robert Kennedy     | rkennedy@coas.oregonstate.edu
+//         Ben Roberts-Pierel | robertsb@oregonstate.edu
 // website: https://github.com/eMapR/LT-GEE
 //updated to run for the country of Laos
 
@@ -18,39 +19,29 @@
 //  selected parameters to LandTrendr with spatial conditions, and the merger of various unique LandTrendr 
 //  datasets. 
 
-//var aoi = ee.FeatureCollection("TIGER/2018/States").filterMetadata("NAME","equals","Oregon").geometry().buffer(5000);
-var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA','Laos')).geometry().buffer(5000);
+var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA','Cambodia')).geometry().buffer(5000);
 //Map.addLayer(aoi,{},'aoi')
-var cluster_image = ee.Image("users/ak_glaciers/LTOP_Laos_Kmeans_Cluster_Image")
+var cluster_image = ee.Image("users/ak_glaciers/ltop_snic_seed_points75k_kmeans_cambodia_c2_1990")
 Map.addLayer(cluster_image,{},'cluster image')
-var table = ee.FeatureCollection("users/ak_glaciers/LTOP_Laos_config_selected");
+var table = ee.FeatureCollection("users/ak_glaciers/LTOP_Cambodia_config_selected_220_kmeans_pts_new_weights");
 
+// var ids = ee.FeatureCollection('users/ak_glaciers/LTOP_cambodia_kmeans_cluster_ids_1990_start_subsetted'); 
 
-//print(table.first())
+// var cluster_ids = ids.aggregate_array('cluster_id').sort(); 
+// var new_cluster_ids = ee.List.sequence(0,(cluster_ids.length().subtract(1))); 
 
-//////////////////////////////////////////////////////////
-//////////////////Import Modules ////////////////////////////
-////////////////////////// /////////////////////////////
-
-//var ltgee = require('users/emaprlab/broberts:LTOP_mekong/LandTrendr_V2.4.js'); 
-
-
+// cluster_image = cluster_image.remap(cluster_ids,new_cluster_ids); 
 
 //////////////////////////////////////////////////////////
 //////////////////Import Modules ////////////////////////////
 ////////////////////////// /////////////////////////////
-// note that as of 2/3/2022 this is still based on collection 1, this will need to be updated
 var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js');
-
-// var cluster_image = ee.Image("users/emaprlab/SERVIR/v1/clusterSNICimage_32nd_v1_5000_clipped"),
-//     table = ee.FeatureCollection("users/emaprlab/SERVIR/v1/Mass_gee_LTop_param_selection_base_07_selected_v3"),
-//     aoi = ee.FeatureCollection("users/emaprlab/SERVIR/v1/Cambodia");
 
 //////////////////////////////////////////////////////////
 ////////////////////params//////////////////////////
 ////////////////////////// /////////////////////////////
 
-var startYear = 1999; 
+var startYear = 1990; 
 var endYear = 2020; 
 var startDate = '11-20'; 
 var endDate =   '03-10'; 
@@ -61,25 +52,28 @@ var maskThese = ['cloud', 'shadow']
 ////////Filter parameter lookup table//////////////////////
 ///////////////////////////////////////////////////////////
 
-// cast the feature collection (look up table) to list so we can filter and map it. 5000 for 5000 features in the collection
-var lookUpList =  table.toList(5000)
+// cast the feature collection (look up table) to list so we can filter and map it. Note that the number needs to be adjusted here 
+//to the number of unique cluster ids in the kmeans output 
+var lookUpList =  table.toList(220)
 
 // filter look up table by spectral indice
-// make filter
-var filter_nbr = ee.Filter.eq('index','NBR')
-var filter_b5 = ee.Filter.eq('index','B5')
-var filter_ndvi = ee.Filter.eq('index','NDVI')
-var filter_tcg = ee.Filter.eq('index','TCG')
-var filter_tcw = ee.Filter.eq('index','TCW')
+// make filter - this could be made more generalized if we want to add more indices at some point? 
+var filter_NBR = ee.Filter.eq('index','NBR')
+var filter_B5 = ee.Filter.eq('index','B5')
+var filter_NDVI = ee.Filter.eq('index','NDVI')
+var filter_TCG = ee.Filter.eq('index','TCG')
+var filter_TCW = ee.Filter.eq('index','TCW')
 
 //apply filter
-var nbr_table = lookUpList.filter(filter_nbr)
-var b5_table = lookUpList.filter(filter_b5)
-var ndvi_table = lookUpList.filter(filter_ndvi)
-var tcg_table = lookUpList.filter(filter_tcg)
-var tcw_table = lookUpList.filter(filter_tcw)
+var NBR_table = lookUpList.filter(filter_NBR);
+var B5_table = lookUpList.filter(filter_B5);
+var NDVI_table = lookUpList.filter(filter_NDVI);
+var TCG_table = lookUpList.filter(filter_TCG);
+var TCW_table = lookUpList.filter(filter_TCW);
 
-//print(nbr_table) // nbr look up list
+//print one list to see what it looks like 
+print(TCG_table,'tcg'); 
+
 ///////////////////////////////////////////////////////////
 /////////////Surface Image Collection//////////////////////
 ///////////////////////////////////////////////////////////
@@ -91,7 +85,7 @@ var annualSRcollection = ltgee.buildSRcollection(startYear, endYear, startDate, 
 /////////////Transform Image Collection//////////////////
 /////////////////////////////////////////////////////////
 
-//transformed Landsat surface reflectance image collection
+//transformed Landsat surface reflectance image collection - this likewise would need to be changed for more indices 
 var annualLTcollectionNBR = ltgee.buildLTcollection(annualSRcollection, 'NBR', ["NBR"]).select(["NBR","ftv_nbr"],["NBR","ftv_ltop"]); 
 var annualLTcollectionNDVI = ltgee.buildLTcollection(annualSRcollection, 'NDVI', ["NDVI"]).select(["NDVI","ftv_ndvi"],["NDVI","ftv_ltop"]); 
 var annualLTcollectionTCW = ltgee.buildLTcollection(annualSRcollection, 'TCW', ["TCW"]).select(["TCW","ftv_tcw"],["TCW","ftv_ltop"]); 
@@ -102,335 +96,79 @@ var annualLTcollectionB5 = ltgee.buildLTcollection(annualSRcollection, 'B5', ["B
 /////////////////////////////////////////////////////////
 ///////Apply Select Parameter to Clusters (B5)/////////// 
 /////////////////////////////////////////////////////////
-
-//map look up table. The look up table contains the selected LandTrendr parameter for each cluster
-// For each feature in the map iteration the select parameters are asigned to temp variables which are then
-// to the landtrendr parameter dictionary. Then a mask is made for the from the cluster image where only cluster
-// matching the cluster id are accessable to Landtrendr. Lastly Landtrendr is ran on the access pixels.
-var printerB5 = b5_table.map(function(feat){
+//write a new general function that takes the place of all the copied functions below - plan to map this over the lists above
+//input args are the index tables above and the associated imageCollection
+var printer_func = function(fc,ic){
+  var output = fc.map(function(feat){
+    //changes feature object to dictionary
+    var dic = ee.Feature(feat).toDictionary()
   
-  //changes feature object to dictionary
-  var dic = ee.Feature(feat).toDictionary()
-
-  //calls number value from dictionary feature key, maxSegments.
-  var maxSeg = dic.getNumber('maxSegments')
-
-  //calls number value from dictionary feature key, spikeThreshold.
-  var spikeThr = dic.getNumber('spikeThreshold')
-
-  //calls number value from dictionary feature key, recoveryThreshold.
-  var recov = dic.getNumber('recoveryThreshold') 
-
-  // calls number value from dictionary feature key, pvalThreshold.
-  var pval = dic.getNumber('pvalThreshold')
+    //calls number value from dictionary feature key, maxSegments.
+    var maxSeg = dic.getNumber('maxSegments')
   
-  // LandTrendr parameter dictionary template.
-  var runParamstemp = { 
-    timeSeries: ee.ImageCollection([]),
-    maxSegments: maxSeg,
-    spikeThreshold: spikeThr,
-    vertexCountOvershoot: 3,
-    preventOneYearRecovery: true,
-    recoveryThreshold: recov,
-    pvalThreshold: pval,
-    bestModelProportion: 0.75,
-    minObservationsNeeded: maxSeg
-  };
-
-  // get cluster ID from dictionary feature as a number
-  var cluster_id = ee.Number(dic.get('cluster_id')).float()
+    //calls number value from dictionary feature key, spikeThreshold.
+    var spikeThr = dic.getNumber('spikeThreshold')
   
-  // creates a mask keep pixels for only a single cluster
-  var masktesting = cluster_image.updateMask(cluster_image.eq(cluster_id)).not().add(1) 
+    //calls number value from dictionary feature key, recoveryThreshold.
+    var recov = dic.getNumber('recoveryThreshold') 
   
-  // blank
-  var maskcol;
-
-  //maps over image collection appling the mask to each image
-  maskcol = annualLTcollectionB5.map(function(img){
-    var out = img.mask(ee.Image(masktesting)).set('system:time_start', img.get('system:time_start'));
-    return out
-  })
+    // calls number value from dictionary feature key, pvalThreshold.
+    var pval = dic.getNumber('pvalThreshold')
+    
+    // LandTrendr parameter dictionary template.
+    var runParamstemp = { 
+      timeSeries: ee.ImageCollection([]),
+      maxSegments: maxSeg,
+      spikeThreshold: spikeThr,
+      vertexCountOvershoot: 3,
+      preventOneYearRecovery: true,
+      recoveryThreshold: recov,
+      pvalThreshold: pval,
+      bestModelProportion: 0.75,
+      minObservationsNeeded: maxSeg
+    };
   
-  // apply masked image collection to LandTrendr parameter dictionary
-  runParamstemp.timeSeries = maskcol;
+    // get cluster ID from dictionary feature as a number
+    var cluster_id = ee.Number(dic.get('cluster_id')).float()
+    
+    // creates a mask keep pixels for only a single cluster - changed for something more simple
+    var cluster_mask = cluster_image.eq(cluster_id).selfMask()
+    
+    // blank
+    var maskcol;
   
-  //Runs LandTrendr
-  var lt = ee.Algorithms.TemporalSegmentation.LandTrendr(runParamstemp).clip(aoi)//.select(0)//.unmask();
-  
-  // return LandTrendr image collection run to list.
-  return lt
+    //maps over image collection applying the mask to each image
+    maskcol = ic.map(function(img){
+      var out = img.updateMask(cluster_mask).set('system:time_start', img.get('system:time_start'));
+      return out
+    })
+    
+    // apply masked image collection to LandTrendr parameter dictionary
+    runParamstemp.timeSeries = maskcol;
+    
+    //Runs LandTrendr
+    var lt = ee.Algorithms.TemporalSegmentation.LandTrendr(runParamstemp).clip(aoi)//.select(0)//.unmask();
+    
+    // return LandTrendr image collection run to list.
+    return lt
 
-})
+}); 
+  //this might be a little redundant but its a way to deal with the map statements 
+  return output; 
+}; 
 
-/////////////////////////////////////////////////////////
-///////Apply Select Parameter to Clusters (NBR)/////////// 
-/////////////////////////////////////////////////////////
+//now call the function for each index we're interested in 
+var printerB5 = printer_func(B5_table, annualLTcollectionB5); 
+var printerNBR = printer_func(NBR_table, annualLTcollectionNBR); 
+var printerNDVI = printer_func(NDVI_table, annualLTcollectionNDVI); 
+var printerTCG = printer_func(TCG_table, annualLTcollectionTCG);
+var printerTCW = printer_func(TCW_table, annualLTcollectionTCW);
 
-//map look up table. The look up table contains the selected LandTrendr parameter for each cluster
-// For each feature in the map iteration the select parameters are asigned to temp variables which are then
-// to the landtrendr parameter dictionary. Then a mask is made for the from the cluster image where only cluster
-// matching the cluster id are accessable to Landtrendr. Lastly Landtrendr is ran on the access pixels.
-var printerNBR = nbr_table.map(function(feat){
-  
-  //changes feature object to dictionary
-  var dic = ee.Feature(feat).toDictionary()
-
-  //calls number value from dictionary feature key, maxSegments.
-  var maxSeg = dic.getNumber('maxSegments')
-
-  //calls number value from dictionary feature key, spikeThreshold.
-  var spikeThr = dic.getNumber('spikeThreshold')
-
-  //calls number value from dictionary feature key, recoveryThreshold.
-  var recov = dic.getNumber('recoveryThreshold') 
-
-  // calls number value from dictionary feature key, pvalThreshold.
-  var pval = dic.getNumber('pvalThreshold')
-  
-  // LandTrendr parameter dictionary template.
-  var runParamstemp = { 
-    timeSeries: ee.ImageCollection([]),
-    maxSegments: maxSeg,
-    spikeThreshold: spikeThr,
-    vertexCountOvershoot: 3,
-    preventOneYearRecovery: true,
-    recoveryThreshold: recov,
-    pvalThreshold: pval,
-    bestModelProportion: 0.75,
-    minObservationsNeeded: maxSeg
-  };
-
-  // get cluster ID from dictionary feature as a number
-  var cluster_id = ee.Number(dic.get('cluster_id')).float()
-  
-  // creates a mask keep pixels for only a single cluster
-  var masktesting = cluster_image.updateMask(cluster_image.eq(cluster_id)).not().add(1) 
-  
-  // blank
-  var maskcol;
-
-  //maps over image collection applying the mask to each image
-  maskcol = annualLTcollectionNBR.map(function(img){
-    var out = img.mask(ee.Image(masktesting)).set('system:time_start', img.get('system:time_start'));
-    return out
-  })
-  
-  // apply masked image collection to LandTrendr parameter dictionary
-  runParamstemp.timeSeries = maskcol;
-  
-  //Runs LandTrendr
-  var lt = ee.Algorithms.TemporalSegmentation.LandTrendr(runParamstemp).clip(aoi)//.select(0)//.unmask();
-  
-  // return LandTrendr image collection run to list.
-  return lt
-
-})
-
-/////////////////////////////////////////////////////////
-///////Apply Select Parameter to Clusters (NDVI)/////////// 
-/////////////////////////////////////////////////////////
-
-//map look up table. The look up table contains the selected LandTrendr parameter for each cluster
-// For each feature in the map iteration the select parameters are asigned to temp variables which are then
-// to the landtrendr parameter dictionary. Then a mask is made for the from the cluster image where only cluster
-// matching the cluster id are accessable to Landtrendr. Lastly Landtrendr is ran on the access pixels.
-var printerNDVI = ndvi_table.map(function(feat){
-  
-  //changes feature object to dictionary
-  var dic = ee.Feature(feat).toDictionary()
-
-  //calls number value from dictionary feature key, maxSegments.
-  var maxSeg = dic.getNumber('maxSegments')
-
-  //calls number value from dictionary feature key, spikeThreshold.
-  var spikeThr = dic.getNumber('spikeThreshold')
-
-  //calls number value from dictionary feature key, recoveryThreshold.
-  var recov = dic.getNumber('recoveryThreshold') 
-
-  // calls number value from dictionary feature key, pvalThreshold.
-  var pval = dic.getNumber('pvalThreshold')
-  
-  // LandTrendr parameter dictionary template.
-  var runParamstemp = { 
-    timeSeries: ee.ImageCollection([]),
-    maxSegments: maxSeg,
-    spikeThreshold: spikeThr,
-    vertexCountOvershoot: 3,
-    preventOneYearRecovery: true,
-    recoveryThreshold: recov,
-    pvalThreshold: pval,
-    bestModelProportion: 0.75,
-    minObservationsNeeded: maxSeg
-  };
-
-  // get cluster ID from dictionary feature as a number
-  var cluster_id = ee.Number(dic.get('cluster_id')).float()
-  
-  // creates a mask keep pixels for only a single cluster
-  var masktesting = cluster_image.updateMask(cluster_image.eq(cluster_id)).not().add(1) 
-  
-  // blank
-  var maskcol;
-
-  //maps over image collection appling the mask to each image
-  maskcol = annualLTcollectionNDVI.map(function(img){
-    var out = img.mask(ee.Image(masktesting)).set('system:time_start', img.get('system:time_start'));
-    return out
-  })
-  
-  // apply masked image collection to LandTrendr parameter dictionary
-  runParamstemp.timeSeries = maskcol;
-  
-  //Runs LandTrendr
-  var lt = ee.Algorithms.TemporalSegmentation.LandTrendr(runParamstemp).clip(aoi)//.select(0)//.unmask();
-  
-  // return LandTrendr image collection run to list.
-  return lt
-
-})
-
-
-/////////////////////////////////////////////////////////
-///////Apply Select Parameter to Clusters (TCG)/////////// 
-/////////////////////////////////////////////////////////
-
-//map look up table. The look up table contains the selected LandTrendr parameter for each cluster
-// For each feature in the map iteration the select parameters are asigned to temp variables which are then
-// to the landtrendr parameter dictionary. Then a mask is made for the from the cluster image where only cluster
-// matching the cluster id are accessable to Landtrendr. Lastly Landtrendr is ran on the access pixels.
-var printerTCG = tcg_table.map(function(feat){
-  
-  //changes feature object to dictionary
-  var dic = ee.Feature(feat).toDictionary()
-
-  //calls number value from dictionary feature key, maxSegments.
-  var maxSeg = dic.getNumber('maxSegments')
-
-  //calls number value from dictionary feature key, spikeThreshold.
-  var spikeThr = dic.getNumber('spikeThreshold')
-
-  //calls number value from dictionary feature key, recoveryThreshold.
-  var recov = dic.getNumber('recoveryThreshold') 
-
-  // calls number value from dictionary feature key, pvalThreshold.
-  var pval = dic.getNumber('pvalThreshold')
-  
-  // LandTrendr parameter dictionary template.
-  var runParamstemp = { 
-    timeSeries: ee.ImageCollection([]),
-    maxSegments: maxSeg,
-    spikeThreshold: spikeThr,
-    vertexCountOvershoot: 3,
-    preventOneYearRecovery: true,
-    recoveryThreshold: recov,
-    pvalThreshold: pval,
-    bestModelProportion: 0.75,
-    minObservationsNeeded: maxSeg
-  };
-
-  // get cluster ID from dictionary feature as a number
-  var cluster_id = ee.Number(dic.get('cluster_id')).float()
-  
-  // creates a mask keep pixels for only a single cluster
-  var masktesting = cluster_image.updateMask(cluster_image.eq(cluster_id)).not().add(1) 
-  
-  // blank
-  var maskcol;
-
-  //maps over image collection appling the mask to each image
-  maskcol = annualLTcollectionTCG.map(function(img){
-    var out = img.mask(ee.Image(masktesting)).set('system:time_start', img.get('system:time_start'));
-    return out
-  })
-  
-  // apply masked image collection to LandTrendr parameter dictionary
-  runParamstemp.timeSeries = maskcol;
-  
-  //Runs LandTrendr
-  var lt = ee.Algorithms.TemporalSegmentation.LandTrendr(runParamstemp).clip(aoi)//.select(0)//.unmask();
-  
-  // return LandTrendr image collection run to list.
-  return lt
-
-})
-
-
-/////////////////////////////////////////////////////////
-///////Apply Select Parameter to Clusters (TCW)/////////// 
-/////////////////////////////////////////////////////////
-
-//map look up table. The look up table contains the selected LandTrendr parameter for each cluster
-// For each feature in the map iteration the select parameters are asigned to temp variables which are then
-// to the landtrendr parameter dictionary. Then a mask is made for the from the cluster image where only cluster
-// matching the cluster id are accessable to Landtrendr. Lastly Landtrendr is ran on the access pixels.
-var printerTCW = tcw_table.map(function(feat){
-  
-  //changes feature object to dictionary
-  var dic = ee.Feature(feat).toDictionary()
-
-  //calls number value from dictionary feature key, maxSegments.
-  var maxSeg = dic.getNumber('maxSegments')
-
-  //calls number value from dictionary feature key, spikeThreshold.
-  var spikeThr = dic.getNumber('spikeThreshold')
-
-  //calls number value from dictionary feature key, recoveryThreshold.
-  var recov = dic.getNumber('recoveryThreshold') 
-
-  // calls number value from dictionary feature key, pvalThreshold.
-  var pval = dic.getNumber('pvalThreshold')
-  
-  // LandTrendr parameter dictionary template.
-  var runParamstemp = { 
-    timeSeries: ee.ImageCollection([]),
-    maxSegments: maxSeg,
-    spikeThreshold: spikeThr,
-    vertexCountOvershoot: 3,
-    preventOneYearRecovery: true,
-    recoveryThreshold: recov,
-    pvalThreshold: pval,
-    bestModelProportion: 0.75,
-    minObservationsNeeded: maxSeg
-  };
-
-  // get cluster ID from dictionary feature as a number
-  var cluster_id = ee.Number(dic.get('cluster_id')).float()
-  
-  // creates a mask keep pixels for only a single cluster
-  var masktesting = cluster_image.updateMask(cluster_image.eq(cluster_id)).not().add(1) 
-  
-  // blank
-  var maskcol;
-
-  //maps over image collection appling the mask to each image
-  maskcol = annualLTcollectionTCW.map(function(img){
-    var out = img.mask(ee.Image(masktesting)).set('system:time_start', img.get('system:time_start'));
-    return out
-  })
-  
-  // apply masked image collection to LandTrendr parameter dictionary
-  runParamstemp.timeSeries = maskcol;
-
-  //Runs LandTrendr
-  var lt = ee.Algorithms.TemporalSegmentation.LandTrendr(runParamstemp).clip(aoi)//.select(0)//.unmask();
-  
-  // return LandTrendr image collection run to list.
-  return lt
-
-})
-
-
-//print(printerTCW)
-
-// concat each indice print output together
-var printer = printerB5.cat(printerNBR).cat(printerNDVI).cat(printerTCG).cat(printerTCW)
-
-//print(printer)
+// concat each index print output together
+var combined_lt = printerB5.cat(printerNBR).cat(printerNDVI).cat(printerTCG).cat(printerTCW); 
 
 //Mosaic each LandTrendr run in list to single image collection
-var ltcol = ee.ImageCollection(printer).mosaic()
+var ltcol = ee.ImageCollection(combined_lt).mosaic(); 
 
 
 var params = { 
@@ -445,7 +183,7 @@ var params = {
   minObservationsNeeded: 5
 };
 
-var lt_vert = ltgee.getLTvertStack(ltcol, params).select([0,1,2,3,4,5,6,7,8,9,10]).int16()
+var lt_vert = ltgee.getLTvertStack(ltcol, params).select([0,1,2,3,4,5,6,7,8,9,10]).int16(); 
 
 // get fitted data from LandTrendr
 //var fittied = ltgee.getFittedData(ltcol, startYear, endYear, fitIndex, [fitIndex],"ftv_").int()
@@ -456,9 +194,9 @@ var lt_vert = ltgee.getLTvertStack(ltcol, params).select([0,1,2,3,4,5,6,7,8,9,10
 // print(annualSRcollection)
 // print(annualLTcollectionTCG)
 
-Map.addLayer(cluster_image,{min:0, max:5000},'cluster')
-Map.addLayer(ltcol,{},'ltcol')
-Map.addLayer(lt_vert,{},'lt_vert')
+// Map.addLayer(cluster_image,{min:0, max:5000},'cluster')
+// Map.addLayer(ltcol,{},'ltcol')
+// Map.addLayer(lt_vert,{},'lt_vert')
 // Map.addLayer(fittied,{},'getFittedData')
 // Map.addLayer(annualSRcollection,{},'annualSRcollection')
 // Map.addLayer(annualLTcollectionTCG,{},'annualLTcollection')
@@ -467,11 +205,11 @@ Map.addLayer(lt_vert,{},'lt_vert')
 ///////////////////////////////////////////////////////// 
 Export.image.toAsset({
   image: lt_vert,
-  description: 'Optimized_LandTrendr_year_vert_array_ben',
-  assetId: 'Optimized_LandTrendr_year_vert_array_ben',
+  description: 'Optimized_LT_1990_start_Cambodia_remapped_cluster_ids',
+  assetId: 'Optimized_LT_1990_start_Cambodia_remapped_cluster_ids',
   region: aoi,
   scale: 30,
-  maxPixels: 10000000000000
+  maxPixels: 1e13
 })  
 /////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////
@@ -493,4 +231,5 @@ Export.image.toAsset({
 /////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////
+
 

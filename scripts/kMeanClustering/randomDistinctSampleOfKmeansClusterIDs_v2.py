@@ -16,11 +16,14 @@ import os
 import sys
 import numpy as np
 
-shp_file_path = "/vol/v1/proj/LTOP_mekong/vectors/02_Kmeans/LTOP_laos_kmeans_cluster_ids.shp"
-out_file_path = "/vol/v1/proj/LTOP_mekong/vectors/02_Kmeans/LTOP_laos_kmeans_cluster_ids_subsetted.shp"
+shp_file_path = "/vol/v1/proj/LTOP_mekong/vectors/02_Kmeans/LTOP_cambodia_cluster_ids_1990_start.shp"
+out_file_path = "/vol/v1/proj/LTOP_mekong/vectors/02_Kmeans/LTOP_cambodia_kmeans_cluster_ids_1990_start_subsetted_test.shp"
 
 shp_df = gpd.read_file(shp_file_path)
 
+print(len(shp_df.cluster_id.unique()))
+print(shp_df.head())
+print(shp_df.columns) 
 # add two new fields to dataframe 
 shp_df['rdmNum'] = 0
 shp_df['rep'] = 0

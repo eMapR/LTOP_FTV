@@ -7,15 +7,15 @@
 var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
 
 // Load in the Abstract image collection. This made from tiff_v7
-var images = ee.ImageCollection("users/ak_glaciers/abstract_images/laos_abstract_images_ic");
+var images = ee.ImageCollection("users/ak_glaciers/cambodia_revised_abstract_ic");
 
 // Import a ID layer
-var id_points = ee.FeatureCollection('users/ak_glaciers/abstract_images/abstract_image_ids');
+var id_points = ee.FeatureCollection('users/ak_glaciers/abstract_image_ids_revised_ids');
 
 // Rename the bands (can't upload with names as far as I can tell)
 images = images.select(['b1','b2','b3','b4','b5'],['NBR', 'NDVI', 'TCG', 'TCW', 'B5']);
 
-var indexname = "B5"
+var indexname = "B5"; 
 
 // Add a time stamp to each image
 images = images.map(add_time_stamp);
@@ -24,9 +24,9 @@ images = images.map(add_time_stamp);
 images = images.map(mask_no_data_values);
 
 // Display the images
-Map.addLayer(images,  {min:[0,-500,0], max:[1000,1000,1500]}, 'Abstract Collection');
-Map.addLayer(id_points, {}, 'ID Points');
-Map.centerObject(images, 16);
+// Map.addLayer(images,  {min:[0,-500,0], max:[1000,1000,1500]}, 'Abstract Collection');
+// Map.addLayer(id_points, {}, 'ID Points');
+// Map.centerObject(images, 16);
 
 // Add a time stamp based on the system:id property
 function add_time_stamp (image) {
@@ -126,8 +126,8 @@ Map.addLayer(featCol,{},'featCol')
 
 Export.table.toDrive({
   collection: featCol,
-  description: "LTOP_Laos_abstractImageSample_5000pts_lt_144params_"+indexname+"_v2",
-  folder: "LTOP_Laos_abstractImageSamples_5000pts_v2",
+  description: "LTOP_Cambodia_abstractImageSample_220pts_lt_144params_"+indexname+"_c2_revised_ids",
+  folder: "LTOP_Cambodia_abstractImageSamples_220_pts_c2_revised_ids",
   fileFormat: 'CSV'
 });
 

@@ -12,15 +12,15 @@ Traditionally, LandTrendr is run over an image collection with a single LandTren
 
 ![img](https://lh4.googleusercontent.com/qpYv4_Q9InR0_LBzk1vdtIWhfLmMRNwZ840DSv6h0CzETzPjd2n6pgQP24eiHFQLfTKp3Tr17yLoqwdRfPeNb_YyktC60kTGnQulL7UwiLoQit-OyJJ3H_vI25-GE06J20ab_YeO=s0)
 
-NOTE: The below work flow is of a Oregon test region. So file paths to data sets are symbolic. To Islay they are real from `vol/v1/proj`.  
+NOTE: The below work flow is for southeast Asia. So file paths to data sets are symbolic. To Islay they are real from `vol/v1/proj`.  
 
 #### 1 Run 01SNICPatches in GEE to generate SNIC images (GEE)
 
-First, we want to break up an image into spectrally similar chucks, patches of pixels that are like one another. These could be pixels that make up a pond or a stand of forest. This is what the SNIC script does for us. One thing to note is that every patch is independent of the other patches even if two patches represent the same land class. From this script we get a seed image, which represents the starting point of each patch. The Seed Image has several bands pretaining to mean spectral values of that Seed's patch. For something the size of Laos, this should take about an hour to run. 
+First, we want to break up an image into spectrally similar chunks, patches of pixels that are like one another. These could be pixels that make up a pond or a stand of forest. One thing to note is that every patch is independent of the other patches even if two patches represent the same land class. From this script we get a seed image, which represents the starting point of each patch. The Seed Image has several bands that point to mean spectral values of that Seed's patch. For something the size of Laos, this should take about an hour to run. 
 
 	0. Script location
 
-		./LTOP_Oregon/scripts/GEEjs/01SNICPatches.js
+		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/01SNICPatches.js
 
 	1. Copy and paste script in GEE console 
 	
@@ -28,7 +28,7 @@ First, we want to break up an image into spectrally similar chucks, patches of p
 
 	3. Review in script parameters. Lines 35-39, lines 47-49 (SNIC years), lines 83,84 (SNIC)
 
-	4. Run script (01SNICPatches)
+	4. Run script (01SNICPatches) note that it will take some time for the tasks to show up
 
 	5. Run tasks
 
@@ -56,7 +56,7 @@ Here, we move our SNIC datasets to a server for further processing. Note that yo
 
 #### 3 Merge image chunks into two virtual raster (GDAL)
 
-Out first processing step is to make a virual raster from the many Seed Image chunks download. Note that these will be grouped with the general images when they come down from GEE. Separate manually or programmatically before the next steps or they will be combined incorrectly. 
+Out first processing step is to make a virual raster from the many Seed Image chunks download. Note that these will be grouped with the general images when they come down from GEE. Separate manually or programmatically before the next steps or they will be combined incorrectly. You need to do this in a Python 3.x env or the gdal command will not work. 
 
 [add seed image]
 
@@ -66,17 +66,17 @@ Out first processing step is to make a virual raster from the many Seed Image ch
 
 	2. Build VRT SNIC seed image 
 
-		a) make text file of file path is folder (only tiffs in the folder)
+		a) make text file of file path in folder (only tiffs in the folder)
 	
 			ls -d "$PWD"/* > listOfTiffs.txt
 
 		b) build vrt raster with text file 
 
-			gdalbuildvrt snic_seed.vrt -input_file_list listOfTiffs.txt
+			gdalbuildvrt snic_seed_c2.vrt -input_file_list listOfTiffs.txt
 
 	3. Build VRT SNIC image 
 
-		a) make text file of file path is folder (only tiffs in the folder)
+		a) make text file of file path in folder (only tiffs in the folder)
 
 			ls -d "$PWD"/* > listOfTiffs.txt
 
@@ -89,9 +89,9 @@ Out first processing step is to make a virual raster from the many Seed Image ch
 
 		a) Data location:
 
-			./LTOP_Oregon/rasters/01_SNIC/snic_seed.vrt
+			./LTOP_mekong/rasters/01_SNIC/c2_seed_image/snic_seed.vrt
 
-			./LTOP_Oregon/rasters/01_SNIC/snic_image.vrt	(I don't think this is used in the work flow?)		
+			./LTOP_mekong/rasters/01_SNIC/c2_images/snic_image_c2.vrt"		
 
 
 #### 4 Raster calc SNIC Seed Image to keep only seed pixels (QGIS)
@@ -104,11 +104,11 @@ Now we set a No Data to 0 making most of the image No Data which is usful in the
 
 	2. Input:
 
-		./LTOP_Oregon/rasters/01_SNIC/snic_seed.vrt
+		.LTOP_mekong/rasters/01_SNIC/c2_seed_image/snic_seed.vrt
 
 	3. Output: 	
 
-		./LTOP_Oregon/rasters/01_SNIC/snic_seed_pixels.tif
+		./LTOP_mekong/rasters/01_SNIC/processed_seed/seed_image_band_1_seed_pixels_noData_c2.tif
 
 	Note: 
 		This raster calculation changes the 0 pixel values to no data in Q-gis. However, this also 
@@ -126,22 +126,22 @@ Here we change every pixel in the Seed Image to a point vector except pixels wit
 
 	2. Input
 
-		./LTOP_Oregon/rasters/01_SNIC/snic_seed_pixels.tif
+		./LTOP_mekong/rasters/01_SNIC/processed_seed/seed_image_band_1_seed_pixels_noData_c2.tif
 
 	3. Output
 
-		./LTOP_Oregon/vectors/01_SNIC/01_snic_seed_pixel_points/01_snic_seed_pixel_points.shp
+		./LTOP_mekong/vectors/01_SNIC/01_snic_seed_pixel_points_c2.shp
 
 
 #### 6 Randomly select a subset of 75k points (QGIS)
 
-After sampling we select a subset of points. The size of the subset is arbitraray choosen to a size what works in GEE.
+After sampling we select a subset of points. The size of the subset is arbitraray choosen to a size what works in GEE. Note that this won't automatically produce an output. You need to right click on the layer and save the selection to a new shp file. 
 
 	0. Qgis tool - Random selection within subsets
 
 	1. Input
 
-		./LTOP_Oregon/vectors/01_SNIC/02_snic_seed_pixel_points_attributted/02_snic_seed_pixel_points_attributted.shp
+		./LTOP_mekong/vectors/01_SNIC/01_snic_seed_pixel_points_c2.shp
 
 	2. Number of selection 
 
@@ -151,7 +151,7 @@ After sampling we select a subset of points. The size of the subset is arbitrara
 
 	3. Save selected features as:
 
- 		./LTOP_Oregon/vectors/01_SNIC/03_snic_seed_pixel_points_attributted_random_subset_75k/03_snic_seed_pixel_points_attributted_random_subset_75k.shp
+ 		./LTOP_mekong/vectors/01_SNIC/02_snic_seed_pixel_points_75k_random_selection_c2.shp
 
 
 #### 7 Sample SNIC Seed Image with Seed points (QGIS) 
@@ -162,11 +162,11 @@ With point generated in the pervious step we extract the pixel values from the S
 
 	1. Input point layer
 
-		./LTOP_Oregon/vectors/01_SNIC/01_snic_seed_pixel_points/01_snic_seed_pixel_points.shp
+		./LTOP_mekong/vectors/01_SNIC/02_snic_seed_pixel_points_75k_random_selection_c2.shp
 
 	2. Raster layer 
 
-		./LTOP_Oregon/rasters/01_SNIC/snic_seed.vrt
+		./LTOP_mekong/rasters/01_SNIC/c2_images/snic_image_c2.vrt"		
 
 	3. Output column prefix
 
@@ -174,7 +174,7 @@ With point generated in the pervious step we extract the pixel values from the S
 
 	4. Output location 
 
-		./LTOP_Oregon/vectors/01_SNIC/02_snic_seed_pixel_points_attributted/02_snic_seed_pixel_points_attributted.shp
+		./LTOP_mekong/vectors/01_SNIC/02_snic_seed_pixel_points_selection_w_attributes_c2.shp
 
 
 
@@ -184,7 +184,7 @@ Here we zip and upload the subset of vector points to GEE.
 
 	1. file location 
 
-		./LTOP_Oregon/vectors/01_SNIC/03_snic_seed_pixel_points_attributted_random_subset_75k/ 
+		./LTOP_mekong/vectors/01_SNIC/02_snic_seed_pixel_points_selection_w_attributes_c2.shp 
 
 	2. Zip shape files in directory
 
@@ -198,19 +198,19 @@ Here we zip and upload the subset of vector points to GEE.
 
 #### 9 Kmeans cluster from SNIC patches (GEE) 
 
-Remember in step 1 when I said the SNIC patch are independent of one another even if they represent the same land class. Well, it is here, where we link the patches that are simular to one another with the Kmeans alogroithm. Note that if you are not running in the lab account and if you are running for a different place you will need to change filepaths to reflect the location of the uploaded points asset.   
+Now we cluster the SNIC patches into similar land class categories. Note that in the original version of LTOP the wekeKmeans algorithm in GEE was producing the specified 5000 clusters. However, in later versions, it will only produce a fraction of that. This means that other scripts downstream of this point are changed to accommodate the different cluster id naming conventions. Note that if you are not running in the lab account and if you are running for a different place you will need to change filepaths to reflect the location of the uploaded points asset.   
 	
 	1. script local location
 
-		./LTOP_Oregon/scripts/GEEjs/02kMeansCluster.js 
+		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/02kMeansCluster.js 
 
 	2. copy and paste script into GEE console 
 	
-	2. Make sure you all needed dependencies 
+	2. Make sure you have all needed dependencies 
 
 	3. Review in script parameters.
 
-		number of Kmean Clusters : 5000
+		number of Kmean Clusters : 5000 Note that this argument does not seem to work in the kmeans algorithm the way would would expect i.e. it does not produce 5000 clusters
 
 	4. Run script
 
@@ -220,18 +220,16 @@ Remember in step 1 when I said the SNIC patch are independent of one another eve
 
 			Kmeans Cluster seed image to Google drive
 
-				./LTOP_Oregon/rasters/02_Kmeans/LTOP_Oregon_Kmeans_seed_image.tif
-
+				{task name for 02kMeansCluster.js image to drive output}
 		task to assets
 
 			kmeans cluster image to GEE assets
 
-				users/emaprlab/LTOP_Oregon_Kmeans_Cluster_Image
-
+				{task name for 02kMeansCluster.js asset output}
 
 #### 10 Export KMeans seed image to Islay (Moving Data)
 
-Download the Kmeans Seed image. This image looks like the SNIC Seed Image but the pixels values are Kmeans Cluster IDs. This IDs are the links between simular patches. 
+Download the Kmeans Seed image. This image looks like the SNIC Seed Image but the pixels values are Kmeans Cluster IDs. This IDs are the links between simular patches. Note that if you have a large enough area you will need to stitch the resultant GEE rasters together using the steps outlined in number 3 above (i.e. make a list of files and then a VRT file from that). 
 
 	0. Open terminal on Islay in a VNC
 
@@ -265,9 +263,9 @@ Using the SNIC Seed point vector dataset, the output from step 5, we sample the 
 
 		a)Input 
 
-			./LTOP_Oregon/rasters/02_Kmeans/LTOP_Oregon_Kmeans_seed_image.tif
+			./LTOP_mekong/rasters/02_Kmeans/cambodia/LTOP_cambodia_kmeans_seed_short.tif
 
-			./LTOP_Oregon/vectors/01_SNIC/01_snic_seed_pixel_points/01_snic_seed_pixel_points.shp
+			./LTOP_mekong/vectors/01_SNIC/03_snic_75k_selection_w_attributes_c2_cambodia.shp
 
 		b) Output column prefix
 
@@ -275,28 +273,28 @@ Using the SNIC Seed point vector dataset, the output from step 5, we sample the 
 
 		c) output
 
-			./LTOP_Oregon/vectors/02_Kmeans/LTOP_Oregon_Kmeans_Cluster_IDs.shp
+			./LTOP_mekong/vectors/02_Kmeans/LTOP_cambodia_cluster_ids.shp
 
 
 
 
 #### 13 Get single point for each Kmeans cluster (Python)
 
-Since our sample contains points for every pixel in the Seed Image there are duplicate Kmeans Cluster ID values. These duplicates represent Kmeans Clusters that are spectrally simular, linked land class if you will. But we only need vector point with a unique Cluster ID. So here we randomly select points each of which has a unique Kmeans Cluster ID. So we end up with 5000 points for 5000 Kmeans Cluster IDs.  
+Since our sample contains points for every pixel in the Seed Image there are duplicate Kmeans Cluster ID values. These duplicates represent Kmeans Clusters that are spectrally similar, linked land class if you will. But we only need vector point with a unique Cluster ID. So here we randomly select points each of which has a unique Kmeans Cluster ID. In the original version, we would always have 5000 points but that is no longer the case. You will have a variable number of unique ids and thus rows in this vector output.   
 
 	1) location
 
-		./LTOP_Oregon/scripts/kMeanClustering/randomDistinctSampleOfKmeansClusterIDs_v2.py
+		./LTOP_mekong/LTOP_FTV/scripts/kMeanClustering/randomDistinctSampleOfKmeansClusterIDs_v2.py
 
 	2) Edit in script parameters  
 
 		a) input shp file:
 
-			./LTOP_Oregon/vectors/02_Kmeans/LTOP_Oregon_Kmeans_Cluster_IDs/LTOP_Oregon_Kmeans_Cluster_IDs.shp
+			./LTOP_mekong/vectors/02_Kmeans/LTOP_cambodia_cluster_ids_1990_start.shp"
 
 		b) output shp file:
 
-			./LTOP_Oregon/vectors/02_Kmeans/LTOP_Oregon_Kmeans_Cluster_ID_reps/LTOP_Oregon_Kmeans_Cluster_IDs.shp
+			./LTOP_mekong/vectors/02_Kmeans/LTOP_cambodia_kmeans_cluster_ids_1990_start_subsetted.shp"
 
 	3) conda 
 
@@ -306,13 +304,13 @@ Since our sample contains points for every pixel in the Seed Image there are dup
 
 		python ./LTOP_Oregon/scripts/kMeanClustering/randomDistinctSampleOfKmeansClusterIDs_v2.py
 
-#### 14 Upload SHP file of 5000 Kmeans cluster IDs points to GEE (Moving Data)
+#### 14 Upload SHP file of xx Kmeans cluster IDs points to GEE (Moving Data)
 
-Move the random subset of the Kmeans sample points up to GEE.
+Move the random subset of the Kmeans sample points up to GEE. Note that this might not be working correctly because its not producing 5000 clusters for some reason. 
 
 	1) location 
 
-		./LTOP_Oregon/vectors/02_Kmeans/LTOP_Oregon_Kmeans_Cluster_ID_reps/
+		./LTOP_mekong/vectors/02_Kmeans/
 	
 	2) zip folder 
 
@@ -322,9 +320,9 @@ Move the random subset of the Kmeans sample points up to GEE.
 
 		users/emaprlab/LTOP_Oregon_Kmeans_Cluster_ID_reps
 
-#### 15 Sample Landsat Image Collections with the 5000 Kmeans Cluster Points (GEE)
+#### 15 Sample Landsat Image Collections with the xx Kmeans Cluster Points (GEE)
 
-With the subset sample of Kmeans Cluster points, a point for each cluster ID, sample a time series of Landsat Imagery (TCB TCG TCW NBR and NDVI). This sample is exported as a table from GEE. Note that for this and other GEE processes that the dates are not always uniform. This step takes about 20 mins to run for something the size of Laos. 
+With the subset sample of Kmeans Cluster points, a point for each cluster ID, sample a time series of Landsat Imagery (TCB TCG TCW NBR and NDVI). This sample is exported as a table from GEE. Note that for this and other GEE processes that the dates are not always uniform. 
 
 [Image of Table]  
 
@@ -364,18 +362,18 @@ Download the table
 #### 17 Create Abstract image with CSV (python) 
 
 Here we create an abstract image. We start with the table that contains a time series of spretral values for 5000 points. These points locations are moved to be adjsent to one aonther, and are turned into pixels with each observation in the time series a new image of pixels. This script exports a TIFF image for every year in the time series and a new point vector file at each pixel locaton. 
-
+ 
 [image of orignal points]
 [image of move points]
 [image of abstract image] 
 
 	1) Script Location 
 
-		./LTOP_Oregon/scripts/abstractImageSampling/csv_to_abstract_images.py
+		./LTOP_Oregon/scripts/abstractImageSampling/csv_to_abstract_images_5k_update.py
 
 	2) Input
 
-		./LTOP_Oregon/tables/abstract_sample_gee/LTOP_Oregon_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_v1.csv
+		./proj/LTOP_mekong/csvs/01_abstract_images/LTOP_cambodia_Abstract_Sample_annualSRcollection_NBRTCWTCGNDVIB5_c2_1990_start.csv
 
 	3) Outputs
 
@@ -457,11 +455,11 @@ Upload the shp file that acompanied the abstract image.
 
 			LTOP_Oregon_abstractImageSamples_5000pts_v2/
 							
-							LTOP_Oregon_abstractImageSample_5000pts_lt_144params_B5_v2.csv
-							LTOP_Oregon_abstractImageSample_5000pts_lt_144params_NBR_v2.csv
-							LTOP_Oregon_abstractImageSample_5000pts_lt_144params_NDVI_v2.csv
-							LTOP_Oregon_abstractImageSample_5000pts_lt_144params_TCG_v2.csv
-							LTOP_Oregon_abstractImageSample_5000pts_lt_144params_TCW_v2.csv
+							LTOP_Cambodia_abstractImageSample_220pts_lt_144params_B5_c2_revised_ids
+							LTOP_Cambodia_abstractImageSample_220pts_lt_144params_NBR_c2_revised_ids
+							LTOP_Cambodia_abstractImageSample_220pts_lt_144params_NDVI_c2_revised_ids
+							LTOP_Cambodia_abstractImageSample_220pts_lt_144params_TCG_c2_revised_ids
+							LTOP_Cambodia_abstractImageSample_220pts_lt_144params_TCW_c2_revised_ids
  
 #### 21 Download folder containing CSV‘s one for each index (Moving Data)
 
@@ -500,43 +498,43 @@ the output of the interpreter data.
 
 	1) script locaton
 
-		./LTOP_Oregon/scripts/lt_seletor/01_ltop_lt_parameter_scoring.py
+		./LTOP_mekong/LTOP_FTV/scripts/lt_seletor/01_ltop_lt_paramater_scoring_reweighted_revised.py
 
-	2) Edit line 119 as the input directory of csv files
+	2) Edit line 121 as the input directory of csv files
 
 		a) input directory 
 
-			./LTOP_Oregon/tables/LTOP_Oregon_Abstract_Image_LT_data/
+			./LTOP_mekong/csvs/02_param_selection/cambodia_revised_ids/
 
 
-	3) Edit line 653 as the output csv file
+	3) Edit line 626 as the output csv file
 
 		a) output line 563
 
-			./LTOP_Oregon/tables/LTOP_Oregon_selected_config/LTOP_Oregon_selected_config.csv
+			./LTOP_mekong/csvs/02_param_selection/selected_param_config/LTOP_cambodia_selected_config_revised_new_weights.csv
 
 	4) run script
 
 		conda activate geo_env
 
-		python ./LTOP_Oregon/scripts/lt_seletor/01_ltop_lt_parameter_scoring.py
+		python ./LTOP_mekong/LTOP_FTV/scripts/lt_seletor/01_ltop_lt_paramater_scoring_reweighted_revised.py
 
 #### 23 Run LTOP Parameter Selecting Script (Python). This script runs very quickly (a few mins). 
 
 
 	1) script location
 
-		./LTOP_Oregon/scripts/lt_seletor/02_ltop_select_top_parameter_configuration.py
+		./LTOP_mekong/LTOP_FTV/scripts/lt_seletor/02_ltop_select_top_parameter_configuration.py
 
 	2) Edit and review script
 
 		input file path line 6
 
-			./LTOP_Oregon/tables/LTOP_Oregon_config_scores/LTOP_Oregon_config_scores.csv
+			./LTOP_mekong/csvs/02_param_selection/selected_param_config/LTOP_cambodia_selected_config_revised_new_weights.csv
 
 		output file path line 7
 
-			./LTOP_Oregon/tables/LTOP_Oregon_selected_configurations/LTOP_Oregon_config_selected.csv
+			./LTOP_mekong/csvs/02_param_selection/selected_param_config/LTOP_Cambodia_config_selected_220_kmeans_pts_new_weights.csv
 
 	3) run script
 
@@ -553,11 +551,11 @@ the output of the interpreter data.
 	2) Upload CSV as an asset to GEE	
 
 	
-#### 26 Generate LTOP image in GEE (GEE) !!!Oregon took 3 days time!!!
+#### 26 Generate LTOP image in GEE (GEE). When the processing shifted from a set 5000 kmeans clusters to the algorithm assigned clusters this got much faster. 
 
 	1) script location
 
-		./LTOP_Oregon/scripts/GEEjs/05lt-Optumum-Imager.js
+		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/05lt-Optumum-Imager.js
 
 	2) Edit and review script
 
@@ -597,7 +595,7 @@ the output of the interpreter data.
 #### 28 Use the LTOP breakpoints/vertices outputs to create fitted Landtrendr like outputs. This uses vertices from the LTOP process and the LT-fit algorithm. This step may become optional if the same images are used for the LTOP process and change detection. 
 
 	1) script location
-		"/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/GEEjs/06lt_TransferFTV.js"
+		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/06lt_TransferFTV.js
 
 	2) Edit and review user inputs. There are quite a few and they are described in detail at the top of the script. 
 
