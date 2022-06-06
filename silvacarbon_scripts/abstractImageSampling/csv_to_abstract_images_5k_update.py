@@ -3,8 +3,8 @@ import osgeo.ogr
 import osgeo.osr
 import rasterio
 import pandas as pd
-import numpy as np
 import os
+import numpy as np
 import sys
 '''
 This scripts loads in a CSV and converts it into a "abstract image collection".
@@ -51,10 +51,10 @@ if __name__ == "__main__":
     ######################## PARAMETERS TO BE SET BY USER ####################
     
     # Load in the "abstract images" csv
-    input_data = pd.read_csv("/vol/v1/proj/LTOP_mekong/csvs/01_abstract_images/GEE_LTOP/LTOP_Cambodia_Abstract_Sample_annualSRcollection_NBRTCWTCGNDVIB5_c2_1990_start_renamed.csv")
+    input_data = pd.read_csv("/vol/v1/proj/LTOP_mekong/csvs/01_abstract_images/LTOP_Paraguay_Abstract_Sample_annualSRcollection_NBRTCWTCGNDVIB5_c2_1990_start.csv")
     # Define the output directory for the abstract images and the shapefile
-    output_directory_raster = "/vol/v1/proj/LTOP_mekong/rasters/03_AbstractImage/cambodia_gee_implementation/"
-    output_directory_shp = "/vol/v1/proj/LTOP_mekong/vectors/03_abstract_image_pixel_points/cambodia_gee_implementation/"
+    output_directory_raster = "/vol/v1/proj/LTOP_mekong/rasters/03_AbstractImage/paraguay/"
+    output_directory_shp = "/vol/v1/proj/LTOP_mekong/vectors/03_abstract_image_pixel_points/paraguay/"
 
     if not os.path.exists(output_directory_raster): 
         os.mkdir(output_directory_raster)
@@ -166,10 +166,10 @@ if __name__ == "__main__":
     i = 0
     #there is an issue here when kmeans does not produce the number of expected clusters where the associated ids are incorrect
     #change this so its not chronological but instead pulls from the cluster ids
-    
     for col in range(0, num_cols):
         
         for row in range(0, num_rows):
+        
             # Get the X and Y displacements from the origin
             x = col * x_size + upper_left_x + (x_size / 2) # add half the cell size
             y = row * y_size + upper_left_y + (y_size / 2) # to centre the point
@@ -183,12 +183,12 @@ if __name__ == "__main__":
             feature = osgeo.ogr.Feature(layer_definition)
             feature.SetGeometry(point)
             feature.SetFID(i)
-            #for some reason this has to be a float, cast it as such
-            feature.SetField('cluster_id', float(cluster_ids_all[i]))
+            feature.SetField('cluster_id', cluster_ids_all[i])
             layer.CreateFeature(feature)
         
             # Increment the counter
             i = i + 1
+        
     layer = None
     shape_data.Destroy()
     

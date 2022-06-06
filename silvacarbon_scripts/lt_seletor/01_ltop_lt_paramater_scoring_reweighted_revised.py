@@ -97,10 +97,10 @@ def read_csv(filename):
 	#dftmp = pd.read_csv(filename, converters={'fitted':eval, 'orig': eval, 'vert': eval, 'year': eval})
 
 	# this works for windows
-	dftmp = pd.read_csv(filename)#.sample(5000)
+	dftmp = pd.read_csv(filename).sample(5000)
 
 	start = 1990
-	end = 2021
+	end = 2020
 
 	dftmp2 = dfprep(dftmp,start,end)
 	
@@ -118,14 +118,14 @@ def read_in_CSVs():
 
 	# get a list of file names
 	#files = glob.glob('/media/peter/vol1/v1/ltop_test_local/abstract_image/abstact_sample/SERVIR_abstractImageSamples_5001pts_v1/*.csv')
-	files = glob.glob("/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/cambodia_gee_implementation/*.csv")
+	files = glob.glob("/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/guatemala/*.csv")
 	# files = glob.glob('./SERVIR_abstractImageSamples_5001pts_v1/*.csv')
 	print(files)
 	#file_list = [filename for filename in files if filename.split('.')[1]=='csv']
 	#print(file_list)
 
 	# set up your pool
-	with Pool(processes=8) as pool: # or whatever your hardware can support
+	with Pool(processes=5) as pool: # or whatever your hardware can support
 	# have your pool map the file names to dataframes
 	    df_list = pool.map(read_csv, files)
 	
@@ -134,7 +134,7 @@ def read_in_CSVs():
 	
 	#for shp in file_list:
 	#for shp in files:
-	#	df_list.append(read_csv(shp,start,end)) 
+	#	df_list.append(read_csv(shp,start,end))
 
 	return df_list
 
@@ -171,7 +171,7 @@ def midpoint(lis):
 #def summed_across_vertices(df_numOfPoints,startYear,endYear):
 def summed_across_vertices(df_numOfPoints):
 	startYear = 1990 
-	endYear = 2021
+	endYear = 2020
 
 	# remove any row with no data
 	dftmp = df_numOfPoints.dropna()
@@ -268,7 +268,7 @@ def summed_across_vertices(df_numOfPoints):
 def pool_summed_vert(df_list_cluster_id):
 
 	start = 1990
-	end = 2021
+	end = 2020
 
 	# set up pool works on linux
 	with Pool(processes=8) as pool: # or whatever your hardware can support
@@ -438,7 +438,7 @@ def addValuesToNewColumns(index, row, df):
 def main():
 
 	startYear = 1990
-	endYear = 2021
+	endYear = 2020
 	#number_of_clusters = 5000
 
 	# print(1)
@@ -623,7 +623,7 @@ def main():
 		addValuesToNewColumns(index, row,df)
 
 
-	outfile = "/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/selected_param_config_gee_implementation/LTOP_servir_basin_comps_kmeans_pts_selected_config_revised_new_weights_output_testing_2.csv"
+	outfile = '/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/selected_param_config/LTOP_guatemala_selected_config_new_weights.csv'
 
 	df.to_csv(outfile, index=False)
 

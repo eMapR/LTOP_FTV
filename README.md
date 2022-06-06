@@ -254,10 +254,15 @@ Download the Kmeans Seed image. This image looks like the SNIC Seed Image but th
 
 		./LTOP_Oregon/rasters/02_Kmeans/gee/
 
+#### 12 Sample Kmeans raster (alternate replacement for steps 12-14 below)
+
+There is an issue where the subset of 75k points from the SNIC centroids don't always catch all of the available kmeans cluster, especially the very small clusters. One potential way to combat this would be to use points that are from a stratified random sample of the kmeans output raster, instead of reusing the randomly sampled points from the SNIC process. This is easily accomplished in GEE and does not require additional processing in QGIS. 
+
+	1. COME BACK to this - it can be done from the kmeans output but if this is what we're going to do it should be done in the course of the workflow and now as a separate script. 
 
 #### 12 Sample Kmeans raster (QGIS)
 
-Using the SNIC Seed point vector dataset, the output from step 5, we sample the Kmeans Seed Image.
+Using the SNIC Seed point vector dataset, the output from step 5, we sample the Kmeans Seed Image. Note that if your kmeans image is big enough Gdrive will split it like the seed images above and you will need to put it together into a vrt as laid out above. 
 
 	1. Qgis (TOOL: Sample Raster Values)
 
@@ -274,8 +279,6 @@ Using the SNIC Seed point vector dataset, the output from step 5, we sample the 
 		c) output
 
 			./LTOP_mekong/vectors/02_Kmeans/LTOP_cambodia_cluster_ids.shp
-
-
 
 
 #### 13 Get single point for each Kmeans cluster (Python)
@@ -329,7 +332,7 @@ With the subset sample of Kmeans Cluster points, a point for each cluster ID, sa
 
 	1. script local location
 
-		./LTOP_Oregon/scripts/GEEjs/03abstractSampler.js
+		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/03abstractSampler.js
 
 	2. copy and paste script into GEE console 
 	
@@ -397,7 +400,7 @@ Here we create an abstract image. We start with the table that contains a time s
 
 #### 18 Upload rasters to GEE and make image collection (Moving Data)
 
-We then upload the abstarct images to GEE
+We then upload the abstract images to GEE
 
 	1) Raster location
 
@@ -494,7 +497,7 @@ the output of the interpreter data.
 
 	 python /vol/v1/proj/LTOP_mekong/peter_scripts/scripts/revised_weighting/create_weighting_scheme_from_interpreters.py
 
-#### 22 Run LT Parameter Scoring scripts (Python). Note that this will take about six hours to run for something the size of Laos. It would likely take a very long time for something like CONUS. 
+#### 22 Run LT Parameter Scoring scripts (Python). Note that since the change in the number of kmeans clusters this runs much faster than it did before when there were always 5000 clusters. 
 
 	1) script locaton
 

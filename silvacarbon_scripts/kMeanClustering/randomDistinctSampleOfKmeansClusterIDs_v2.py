@@ -16,8 +16,8 @@ import os
 import sys
 import numpy as np
 
-shp_file_path = "/vol/v1/proj/LTOP_mekong/vectors/02_Kmeans/LTOP_servir_basin_cluster_ids_comps.shp"
-out_file_path = "/vol/v1/proj/LTOP_mekong/vectors/02_Kmeans/LTOP_servir_basin_kmeans_cluster_ids_comps.shp"
+shp_file_path = "/vol/v1/proj/LTOP_mekong/vectors/02_Kmeans/LTOP_paraguay_cluster_ids_1990_start.shp"
+out_file_path = "/vol/v1/proj/LTOP_mekong/vectors/02_Kmeans/LTOP_paraguay_kmeans_cluster_ids_1990_start_subsetted_test.shp"
 
 shp_df = gpd.read_file(shp_file_path)
 

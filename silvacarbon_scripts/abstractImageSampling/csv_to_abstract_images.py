@@ -1,13 +1,6 @@
-from osgeo import gdal
-import osgeo.ogr
-import osgeo.osr
-import rasterio
-import pandas as pd
-import numpy as np
-import os
-import sys
+
 '''
-This scripts loads in a CSV and converts it into a "abstract image collection".
+This program loads in a CSV and converts it into abstract images.
 
 Given this image is "abstract" in that the information is not-spatial, the output
 image will appear near the origin of a project coordinate system.
@@ -26,8 +19,22 @@ Script assumptions:
 
     5. This script assumes that the unique ID field starts from zero.
     
-'''
+    5. This script assumes that the number of inputs can be factored into
+       rows and columns. The user must specify the number of rows and columns.
+       For example, 5000 points could be distibuted into 100 rows and 50 columns
 
+'''
+from osgeo import gdal
+import osgeo.ogr
+import osgeo.osr
+import rasterio
+import pandas as pd
+import numpy as np
+
+'''
+This function gets the profile and projection for the export. there are 3 parameters: out_rows, out_cols, num_bands 
+all of which are intgers. 
+'''
 def create_rasterio_profile(out_rows, out_cols, num_bands=5):
     '''Create the rasterio export profile. '''
 
@@ -51,23 +58,15 @@ if __name__ == "__main__":
     ######################## PARAMETERS TO BE SET BY USER ####################
     
     # Load in the "abstract images" csv
-    input_data = pd.read_csv("/vol/v1/proj/LTOP_mekong/csvs/01_abstract_images/GEE_LTOP/LTOP_Cambodia_Abstract_Sample_annualSRcollection_NBRTCWTCGNDVIB5_c2_1990_start_renamed.csv")
+    input_data = pd.read_csv("/vol/v1/proj/LTOP_mekong/csvs/01_abstract_images/LTOP_cambodia_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_c2_1990_start.csv")
+    
     # Define the output directory for the abstract images and the shapefile
-    output_directory_raster = "/vol/v1/proj/LTOP_mekong/rasters/03_AbstractImage/cambodia_gee_implementation/"
-    output_directory_shp = "/vol/v1/proj/LTOP_mekong/vectors/03_abstract_image_pixel_points/cambodia_gee_implementation/"
-
-    if not os.path.exists(output_directory_raster): 
-        os.mkdir(output_directory_raster)
-    if not os.path.exists(output_directory_shp): 
-        os.mkdir(output_directory_shp)
-
-    # NEW gets the number of unique cluster ids
-    number_of_clusters = len(input_data.cluster_id.unique())
-    cluster_ids_all = sorted(input_data['cluster_id'].unique())
-  
+    output_directory_raster = "/vol/v1/proj/LTOP_mekong/rasters/03_AbstractImage/cambodia/"
+    output_directory_shp = "/vol/v1/proj/LTOP_mekong/vectors/03_abstract_image_pixel_points/cambodia/"
+    
     # Define the output number of rows and columns
     num_rows = 1
-    num_cols = number_of_clusters # the number of clusters used 
+    num_cols = 209
     
     ##########################################################################
     
@@ -76,11 +75,12 @@ if __name__ == "__main__":
     
     # Select the relevant fields
     input_data = input_data[['cluster_id', 'year', 'NBR', 'NDVI', 'TCG', 'TCW', 'B5']]
-    #input_data = input_data[input_data.cluster_id != 5000]
+    
     # Get the start year and the end year
     start_year = input_data[['year']].min().item()
     end_year = input_data[['year']].max().item()
-    #print(start_year,end_year)
+    
+    print(start_year,end_year)
 
     # Loop over the years of the collection
     for current_year in range(start_year, end_year+1):
@@ -95,8 +95,6 @@ if __name__ == "__main__":
         # Convert the data into a numpy array where each       
         # Array_values has the following shape (after the below code)
         # (number_points, 1, num_spectral_bands)
-
-        #print(csv_to_raster_input.to_numpy())
         array_values = csv_to_raster_input.to_numpy()[:,:,np.newaxis]
         array_values = np.swapaxes(array_values, 2, 1)
         
@@ -110,7 +108,7 @@ if __name__ == "__main__":
         with rasterio.Env():
             
             # Create the export path
-            export_path = output_directory_raster + "revised_abstract_image_" + str(current_year) + ".tif"
+            export_path = output_directory_raster + "/abstract_image_" + str(current_year) + ".tif"
             
             # Write out the raster
             with rasterio.open(export_path, 'w', **export_profile) as dst:
@@ -125,7 +123,7 @@ if __name__ == "__main__":
     example_raster = gdal.Open(export_path)
     band = example_raster.GetRasterBand(1)
     
-    # Get some coordinates from the raster
+    # Get some coordinates from teh raster
     (upper_left_x, x_size, x_rotation, upper_left_y, y_rotation, y_size) = example_raster.GetGeoTransform()
     
     # Filter 1 years worth of data from the pandas dataframe
@@ -153,7 +151,7 @@ if __name__ == "__main__":
     driver = osgeo.ogr.GetDriverByName('ESRI Shapefile')
     
     # Create the output shapefile
-    shape_data = driver.CreateDataSource(output_directory_shp + "abstract_image_ids_revised_ids.shp")
+    shape_data = driver.CreateDataSource(output_directory_shp + "/abstract_image_ids.shp")
     layer = shape_data.CreateLayer('ogr_pts', srs, osgeo.ogr.wkbPoint)
 
     # Define the ID field we will use
@@ -162,14 +160,11 @@ if __name__ == "__main__":
     layer_definition = layer.GetLayerDefn()
 
     # Iterate over the Numpy points..
-   
-    i = 0
-    #there is an issue here when kmeans does not produce the number of expected clusters where the associated ids are incorrect
-    #change this so its not chronological but instead pulls from the cluster ids
-    
+    i = 0 
     for col in range(0, num_cols):
         
         for row in range(0, num_rows):
+        
             # Get the X and Y displacements from the origin
             x = col * x_size + upper_left_x + (x_size / 2) # add half the cell size
             y = row * y_size + upper_left_y + (y_size / 2) # to centre the point
@@ -183,13 +178,24 @@ if __name__ == "__main__":
             feature = osgeo.ogr.Feature(layer_definition)
             feature.SetGeometry(point)
             feature.SetFID(i)
-            #for some reason this has to be a float, cast it as such
-            feature.SetField('cluster_id', float(cluster_ids_all[i]))
+            feature.SetField('cluster_id', i)
             layer.CreateFeature(feature)
         
             # Increment the counter
             i = i + 1
+        
     layer = None
     shape_data.Destroy()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     
