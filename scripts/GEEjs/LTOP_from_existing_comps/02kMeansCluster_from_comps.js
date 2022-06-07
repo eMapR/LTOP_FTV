@@ -1,19 +1,20 @@
 //######################################################################################################## 
 //#                                                                                                    #\\
-//#                                         02 Kmeans with existing composites                         #\\
+//#                                         LANDTRENDR LIBRARY                                         #\\
 //#                                                                                                    #\\
 //########################################################################################################
 
 
 // date: 2020-12-10
-// author: Peter Clary        | clarype@oregonstate.edu
-//         Robert Kennedy     | rkennedy@coas.oregonstate.edu
-//         Ben Roberts-Pierel | robertsb@oregonstate.edu
+// author: Peter Clary    | clarype@oregonstate.edu
+//         Robert Kennedy | rkennedy@coas.oregonstate.edu
 // website: https://github.com/eMapR/LT-GEE
 
 //////////////////Import Modules ////////////////////////////
 var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
 
+//Centers the map on spatial features 
+// var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA','Laos')).geometry().buffer(5000);
 var place = 'servir_basin'
 // var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA','Cambodia')).geometry().buffer(5000); 
 var aoi = ee.FeatureCollection("projects/servir-mekong/hydrafloods/CountryBasinsBuffer").geometry()
@@ -88,9 +89,25 @@ var training = ee.Clusterer.wekaCascadeKMeans(5001,5001).train({
 });
 
 
-// // // //////////////Clusterer//////////////
+// // // //////////////Clusterer////////////////////
 var clusterSeed = SNIC_means_image.cluster(training).clip(aoi);
 var kmeans_seed = clusterSeed
+
+/////////////////Generate stratified random pts ////
+//this is new in this version. We just want to make sure that we get all the kmeans clusters in the output image
+var selectKmeansPts = function(img,aoi){
+  var kmeans_points = img.stratifiedSample({
+  numPoints:1,
+  classBand:'cluster',
+  region:aoi, 
+  scale:30, 
+  seed:5,
+  geometries:true
+})
+return kmeans_points
+}
+
+var kmeans_pts = selectKmeansPts(clusterSeed,aoi)
 
 // //////////////Kmeans cluster Export//////////////
       
@@ -102,7 +119,7 @@ Export.image.toDrive({
         region:aoi, 
         scale:30, 
         maxPixels: 1e13 
-})   
+});    
 
 
 Export.image.toAsset({
@@ -112,4 +129,11 @@ Export.image.toAsset({
             region:aoi, 
             scale:30,
             maxPixels:1e13, 
-})
+}); 
+
+
+Export.table.toAsset({
+  collection:ee.FeatureCollection(kmeans_pts),
+  description:'LTOP_kmeans_stratified_random_points_'+place, 
+  assetId:'LTOP_kmeans_stratified_random_points_'+place
+});

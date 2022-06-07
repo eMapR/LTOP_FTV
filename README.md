@@ -1,10 +1,10 @@
 ### LTOP Overview
 
-LandTrendr is a set of spectral-temporal segmentation algorithms that focuses on removing the natural spectral variations in a time series of Landsat Images. Stabilizing the natural variation in a time series emphasizes how a landscape evolves with time. This is useful in many pursuits as it gives information on the state of a landscape, be it growing, remaining stable, or on a decline. LandTrendr is mostly used in Google Earth Engine (GEE), an online image processing console, where it is readily available for use.  
+LandTrendr is a set of spectral-temporal segmentation algorithms that focuses on removing the natural spectral variations in a time series of Landsat Images. Stabilizing the natural variation in a time series emphasizes how a landscape evolves with time. This is useful in many areas as it gives information on the state of a landscape. This includes many different natural and anthropogenic processes including: growing seasons, phenology, stable landscapes, senesence, clearcut etc. LandTrendr is mostly used in Google Earth Engine (GEE), an online image processing console, where it is readily available for use.  
 
-A large obstacle in using LandTrendr in GEE, is knowing which configuration of LandTrendr parameters to use. The LandTrendr GEE function uses 9 arguments: 8 parameters that control how spectral-temporal segmentation is executed, and an annual image collection on which to assess and remove the natural variations. The original LandTrendr journal illustrates the effect and sensitivity of changing some of these values. The default parameters for the LandTrendr GEE algorithm do a satisfactory job in many circumstances, but extensive testing and time is needed to hone the parameter selection to get the best segmentation out of the LandTrendr algorithm for a given region. Thus, augmenting the LandTrendr parameter selection process would save time and standardize a method to choose parameters, but we also aim to take this augmentation a step further. 
+One impediment to running LT over large geographic domains is selecting the best paramater set for a given landscape. The LandTrendr GEE function uses 9 arguments: 8 parameters that control how spectral-temporal segmentation is executed, and an annual image collection on which to assess and remove the natural variations. The original LandTrendr article (Kennedy et al., 2010) illustrates some of the effects and sensitivity of changing some of these values. The default parameters for the LandTrendr GEE algorithm do a satisfactory job in many circumstances, but extensive testing and time is needed to hone the parameter selection to get the best segmentation out of the LandTrendr algorithm for a given region. Thus, augmenting the LandTrendr parameter selection process would save time and standardize a method to choose parameters, but we also aim to take this augmentation a step further. 
 
-Traditionally, LandTrendr is run over an image collection with a single LandTrendr parameter configuration and is able to remove natural variation for every pixel time series in an image. But no individual LandTrendr parameter configuration is best for all surface conditions, where forest may respond well to one configuration, but many under or over emphasize stabilization in another land class. Thus here we aim to delineate patches of spectrally similar pixels from the imagery, find what LandTrendr parameters work best for each patch group, and run LandTrendr on each patch group location with that best parameter configuration. 
+Traditionally, LandTrendr is run over an image collection with a single LandTrendr parameter configuration and is able to remove natural variation for every pixel time series in an image. But no individual LandTrendr parameter configuration is best for all surface conditions. For example, one paramater set might be best for forest cover change while another might be preferred for agricultural phenology or reservoir flooding. To address this shortcoming, we developed a method that delineates patches of spectrally similar pixels from input imagery and then finds the best LandTrendr parameters group. We then run LandTrendr on each patch group location with a number of different paramater sets and assign scores to decide on the best parameter configuration. 
 
 ### LTOP Work Flow (Step by Step) 
 
@@ -20,19 +20,19 @@ First, we want to break up an image into spectrally similar chunks, patches of p
 
 	0. Script location
 
-		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/01SNICPatches.js
+		"./LTOP_mekong/LTOP_FTV/scripts/GEEjs/LTOP_from_existing_comps/01SNICPatches_from_comps.js"
 
 	1. Copy and paste script in GEE console 
 	
 	2. Make sure you have all needed dependencies (emapr GEE account has all dependencies) 
 
-	3. Review in script parameters. Lines 35-39, lines 47-49 (SNIC years), lines 83,84 (SNIC)
+	3. Review in script parameters. You can assign start and end years (40-41), output file name and locations (>103)
 
-	4. Run script (01SNICPatches) note that it will take some time for the tasks to show up
+	4. Run script (01SNICPatches_from_comps.js) note that it will take some time for the tasks to show up
 
 	5. Run tasks
 
-#### 2 Getting SNIC data from the Google drive to Islay (Moving Data)
+#### 2 Getting SNIC data from the Google drive to Islay (Moving Data) (OPTIONAL)
 
 Here, we move our SNIC datasets to a server for further processing. Note that you will need a python environment to do this. You can create one on islay and beyond normal libraries you need pydrive. You also need to keep in mind that if you are not on the eMapr lab GEE account and associated gDrive you will need to either share the files with the lab account or you will need to download them manually. 
 
@@ -56,7 +56,7 @@ Here, we move our SNIC datasets to a server for further processing. Note that yo
 
 #### 3 Merge image chunks into two virtual raster (GDAL)
 
-Out first processing step is to make a virual raster from the many Seed Image chunks download. Note that these will be grouped with the general images when they come down from GEE. Separate manually or programmatically before the next steps or they will be combined incorrectly. You need to do this in a Python 3.x env or the gdal command will not work. 
+Out first processing step is to make a virual raster from the many Seed Image chunks download. Note that these will be grouped with the general images when they come down from GEE. You need to either specify separate folders in the SNIC step or separate manually or programmatically before the next steps or they will be combined incorrectly. You need to do this in a Python 3.x env or the gdal command will not work. 
 
 [add seed image]
 
@@ -178,9 +178,9 @@ With point generated in the pervious step we extract the pixel values from the S
 
 
 
-#### 8 Upload sample to GEE (Moving data)
+#### 8 Upload sample to GEE (Moving data) 
 
-Here we zip and upload the subset of vector points to GEE.
+Here we zip and upload the subset of vector points to GEE. Note that you can also just upload the .shp, .shx, .dbh and .prj files. 
 
 	1. file location 
 
@@ -202,7 +202,7 @@ Now we cluster the SNIC patches into similar land class categories. Note that in
 	
 	1. script local location
 
-		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/02kMeansCluster.js 
+		"./LTOP_mekong/LTOP_FTV/scripts/GEEjs/LTOP_from_existing_comps/02kMeansCluster_from_comps.js"
 
 	2. copy and paste script into GEE console 
 	
@@ -227,9 +227,9 @@ Now we cluster the SNIC patches into similar land class categories. Note that in
 
 				{task name for 02kMeansCluster.js asset output}
 
-#### 10 Export KMeans seed image to Islay (Moving Data)
+#### 10 Export KMeans seed image to Islay (Moving Data) (OPTIONAL)
 
-Download the Kmeans Seed image. This image looks like the SNIC Seed Image but the pixels values are Kmeans Cluster IDs. This IDs are the links between simular patches. Note that if you have a large enough area you will need to stitch the resultant GEE rasters together using the steps outlined in number 3 above (i.e. make a list of files and then a VRT file from that). 
+Download the Kmeans Seed image. This image looks like the SNIC Seed Image but the pixels values are Kmeans Cluster IDs. This IDs are the links between similar patches. Note that if you have a large enough area you will need to stitch the resultant GEE rasters together using the steps outlined in number 3 above (i.e. make a list of files and then a VRT file from that). 
 
 	0. Open terminal on Islay in a VNC
 
@@ -260,70 +260,7 @@ There is an issue where the subset of 75k points from the SNIC centroids don't a
 
 	1. COME BACK to this - it can be done from the kmeans output but if this is what we're going to do it should be done in the course of the workflow and now as a separate script. 
 
-#### 12 Sample Kmeans raster (QGIS)
-
-Using the SNIC Seed point vector dataset, the output from step 5, we sample the Kmeans Seed Image. Note that if your kmeans image is big enough Gdrive will split it like the seed images above and you will need to put it together into a vrt as laid out above. 
-
-	1. Qgis (TOOL: Sample Raster Values)
-
-		a)Input 
-
-			./LTOP_mekong/rasters/02_Kmeans/cambodia/LTOP_cambodia_kmeans_seed_short.tif
-
-			./LTOP_mekong/vectors/01_SNIC/03_snic_75k_selection_w_attributes_c2_cambodia.shp
-
-		b) Output column prefix
-
-			cluster_id
-
-		c) output
-
-			./LTOP_mekong/vectors/02_Kmeans/LTOP_cambodia_cluster_ids.shp
-
-
-#### 13 Get single point for each Kmeans cluster (Python)
-
-Since our sample contains points for every pixel in the Seed Image there are duplicate Kmeans Cluster ID values. These duplicates represent Kmeans Clusters that are spectrally similar, linked land class if you will. But we only need vector point with a unique Cluster ID. So here we randomly select points each of which has a unique Kmeans Cluster ID. In the original version, we would always have 5000 points but that is no longer the case. You will have a variable number of unique ids and thus rows in this vector output.   
-
-	1) location
-
-		./LTOP_mekong/LTOP_FTV/scripts/kMeanClustering/randomDistinctSampleOfKmeansClusterIDs_v2.py
-
-	2) Edit in script parameters  
-
-		a) input shp file:
-
-			./LTOP_mekong/vectors/02_Kmeans/LTOP_cambodia_cluster_ids_1990_start.shp"
-
-		b) output shp file:
-
-			./LTOP_mekong/vectors/02_Kmeans/LTOP_cambodia_kmeans_cluster_ids_1990_start_subsetted.shp"
-
-	3) conda 
-
-		conda activate geo_env
-
-	4) run script
-
-		python ./LTOP_Oregon/scripts/kMeanClustering/randomDistinctSampleOfKmeansClusterIDs_v2.py
-
-#### 14 Upload SHP file of xx Kmeans cluster IDs points to GEE (Moving Data)
-
-Move the random subset of the Kmeans sample points up to GEE. Note that this might not be working correctly because its not producing 5000 clusters for some reason. 
-
-	1) location 
-
-		./LTOP_mekong/vectors/02_Kmeans/
-	
-	2) zip folder 
-
-		zip -r LTOP_Oregon_Kmeans_Cluster_ID_reps.zip LTOP_Oregon_Kmeans_Cluster_ID_reps/
-
-	3) upload to GEE 
-
-		users/emaprlab/LTOP_Oregon_Kmeans_Cluster_ID_reps
-
-#### 15 Sample Landsat Image Collections with the xx Kmeans Cluster Points (GEE)
+#### 13 Sample Landsat Image Collections with the xx Kmeans Cluster Points (GEE)
 
 With the subset sample of Kmeans Cluster points, a point for each cluster ID, sample a time series of Landsat Imagery (TCB TCG TCW NBR and NDVI). This sample is exported as a table from GEE. Note that for this and other GEE processes that the dates are not always uniform. 
 
@@ -349,7 +286,7 @@ With the subset sample of Kmeans Cluster points, a point for each cluster ID, sa
 			LTOP_Oregon_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_v1.csv		
 
 
-#### 16 Download CSV from Google Drive (Moving Data)
+#### 14 Download CSV from Google Drive (Moving Data)
 
 Download the table 
 
@@ -362,7 +299,7 @@ Download the table
 		./LTOP_Oregon/tables/abstract_sample_gee/
 
 
-#### 17 Create Abstract image with CSV (python) 
+#### 15 Create Abstract image with CSV (python) 
 
 Here we create an abstract image. We start with the table that contains a time series of spretral values for 5000 points. These points locations are moved to be adjsent to one aonther, and are turned into pixels with each observation in the time series a new image of pixels. This script exports a TIFF image for every year in the time series and a new point vector file at each pixel locaton. 
  
@@ -398,7 +335,7 @@ Here we create an abstract image. We start with the table that contains a time s
 
 
 
-#### 18 Upload rasters to GEE and make image collection (Moving Data)
+#### 16 Upload rasters to GEE and make image collection (Moving Data)
 
 We then upload the abstract images to GEE
 
@@ -415,7 +352,7 @@ We then upload the abstract images to GEE
 	5) add each abstract image to image collection
 
 
-#### 19 Upload SHP to GEE (Moving Data)
+#### 17 Upload SHP to GEE (Moving Data)
 
 Upload the shp file that acompanied the abstract image.
 
@@ -430,7 +367,7 @@ Upload the shp file that acompanied the abstract image.
 	3) Upload to GEE 
 
 
-#### 20 Run Abstract image for each index (GEE). This runs pretty fast (approx. 5 mins for each index). 
+#### 18 Run Abstract image for each index (GEE). This runs pretty fast (approx. 5 mins for each index). 
 
 
 
@@ -464,7 +401,7 @@ Upload the shp file that acompanied the abstract image.
 							LTOP_Cambodia_abstractImageSample_220pts_lt_144params_TCG_c2_revised_ids
 							LTOP_Cambodia_abstractImageSample_220pts_lt_144params_TCW_c2_revised_ids
  
-#### 21 Download folder containing CSV‘s one for each index (Moving Data)
+#### 19 Download folder containing CSV‘s one for each index (Moving Data)
 
 	1) script location 
 
@@ -480,7 +417,7 @@ Upload the shp file that acompanied the abstract image.
 
 		./LTOP_Oregon/tables/LTOP_Oregon_Abstract_Image_LT_data/
 
-#### 22 Select the correct weighting scheme/values for model selection. We want to apply weights to the AIC and vertex scores from the Pareto curve to (de)emphasize one score or the other based on
+#### 20 Select the correct weighting scheme/values for model selection. We want to apply weights to the AIC and vertex scores from the Pareto curve to (de)emphasize one score or the other based on
 the output of the interpreter data. 
 
 	1) script location
@@ -497,7 +434,7 @@ the output of the interpreter data.
 
 	 python /vol/v1/proj/LTOP_mekong/peter_scripts/scripts/revised_weighting/create_weighting_scheme_from_interpreters.py
 
-#### 22 Run LT Parameter Scoring scripts (Python). Note that since the change in the number of kmeans clusters this runs much faster than it did before when there were always 5000 clusters. 
+#### 21 Run LT Parameter Scoring scripts (Python). Note that since the change in the number of kmeans clusters this runs much faster than it did before when there were always 5000 clusters. 
 
 	1) script locaton
 
@@ -522,7 +459,7 @@ the output of the interpreter data.
 
 		python ./LTOP_mekong/LTOP_FTV/scripts/lt_seletor/01_ltop_lt_paramater_scoring_reweighted_revised.py
 
-#### 23 Run LTOP Parameter Selecting Script (Python). This script runs very quickly (a few mins). 
+#### 22 Run LTOP Parameter Selecting Script (Python). This script runs very quickly (a few mins). 
 
 
 	1) script location
@@ -545,7 +482,7 @@ the output of the interpreter data.
 
 		python ./LTOP_Oregon/scripts/lt_seletor/02_ltop_select_top_parameter_configuration.py
 
-#### 24 Upload CSV to GEE (Moving Data)
+#### 23 Upload CSV to GEE (Moving Data)
 
 	1) CSV location 
 
@@ -554,7 +491,7 @@ the output of the interpreter data.
 	2) Upload CSV as an asset to GEE	
 
 	
-#### 26 Generate LTOP image in GEE (GEE). When the processing shifted from a set 5000 kmeans clusters to the algorithm assigned clusters this got much faster. 
+#### 24 Generate LTOP image in GEE (GEE). When the processing shifted from a set 5000 kmeans clusters to the algorithm assigned clusters this got much faster. 
 
 	1) script location
 
@@ -570,7 +507,7 @@ the output of the interpreter data.
 
 		to drive task
 
-#### 27 Download LTOP imagery (Moving Data)- optional if you're working with assets in the previous step. 
+#### 25 Download LTOP imagery (Moving Data)- optional if you're working with assets in the previous step. 
 
 	0) Open terminal on Islay in a VNC
 
@@ -595,7 +532,7 @@ the output of the interpreter data.
 
 		./LTOP_Oregon/rasters/01_SNIC/
 
-#### 28 Use the LTOP breakpoints/vertices outputs to create fitted Landtrendr like outputs. This uses vertices from the LTOP process and the LT-fit algorithm. This step may become optional if the same images are used for the LTOP process and change detection. 
+#### 26 Use the LTOP breakpoints/vertices outputs to create fitted Landtrendr like outputs. This uses vertices from the LTOP process and the LT-fit algorithm. This step may become optional if the same images are used for the LTOP process and change detection. 
 
 	1) script location
 		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/06lt_TransferFTV.js
@@ -606,7 +543,7 @@ the output of the interpreter data.
 
 	4) Run task to export a fitted array image to an asset. 
 
-#### 29 Use the FTV outputs to create change detection maps using existing change map modules from the public LandTrendr.js scripts. This either takes the outputs of 28 above or the LTOP outputs need to be amended to create these images that mimic the regular LT outputs. 
+#### 27 Use the FTV outputs to create change detection maps using existing change map modules from the public LandTrendr.js scripts. This either takes the outputs of 28 above or the LTOP outputs need to be amended to create these images that mimic the regular LT outputs. 
 
 	1) script location: 
 		"/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/GEEjs/07_Optimized_change_detection.js"
