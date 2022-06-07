@@ -20,46 +20,54 @@
 //////////////////Import Modules ////////////////////////////
 ////////////////////////// /////////////////////////////
 //note that this needs to be changed to the public version when that is available 
-var ltgee = require('users/emaprlab/broberts:lt_collection_2/LandTrendr.js'); 
+var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
 
 //////////////////////////////////////////////////////////
 ///////////////////// vector////////////////////////////
 ////////////////////////// /////////////////////////////
+var place = 'servir_basin'
+//if you want to filter for a country
+// var table = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA','Cambodia')); 
+// var aoi = table.geometry().buffer(5000);
 
-//var table = ee.FeatureCollection("users/emaprlab/SERVIR/v1/Cambodia");
-var table = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA','Laos')); 
+//use the full servir area
+var aoi = ee.FeatureCollection("projects/servir-mekong/hydrafloods/CountryBasinsBuffer").geometry()
 
-//Centers the map on spatial features 
-var aoi = table.geometry().buffer(5000);
-// Map.centerObject(aoi)
-Map.addLayer(aoi)
-
-//////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
 //////////////////// time and mask params//////////////////////////
-////////////////////////// /////////////////////////////
+////////////////////////// ////////////////////////////////////////
 
-var startYear = 1987; 
-var endYear = 2020; 
+var startYear = 1990; 
+var endYear = 2021; 
 
-/////////////////////////////////////////////////////////
-////////////////////////Landsat Composites///////////////////////////////
-/////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
+////////////////////////Landsat Composites/////////////////////////
+///////////////////////////////////////////////////////////////////
+//get the SERVIR composites
+var yr_images = []; 
+for (var y = 1990;y < 2022; y++){
+  var im = ee.Image("projects/servir-mekong/composites/" + y.toString()); 
+  yr_images.push(im); 
+  
+}
 
+var servir_ic = ee.ImageCollection.fromImages(yr_images); 
+print(servir_ic,'servir ic'); 
 //in this version we don't build composites but pull them from existing composites
-var comps = ee.ImageCollection('projects/servir-mekong/regionalComposites').filterBounds(aoi);
+// var comps = ee.ImageCollection('projects/servir-mekong/regionalComposites').filterBounds(aoi);
 
 //the rest of the scripts will be easier if we just rename the bands of these composites to match what comes out of the LT modules
 //note that if using the SERVIR composites the default will be to get the first six bands without the percentile bands
-comps = comps.map(function(img){
+var comps = servir_ic.map(function(img){
   return img.select(['blue','green','red','nir','swir1','swir2'],['B1','B2','B3','B4','B5','B7']);
 }); 
 
 //now make an image that looks like the outputs of the LT modules
-var image2020 = comps.filter(ee.Filter.eq('system:index','2020')).first();
-var image2003 = comps.filter(ee.Filter.eq('system:index','2003')).first();
-var image1987 = comps.filter(ee.Filter.eq('system:index','1987')).first();
+var image2021 = comps.filter(ee.Filter.eq('system:index','2021')).first();
+var image2005 = comps.filter(ee.Filter.eq('system:index','2005')).first();
+var image1990 = comps.filter(ee.Filter.eq('system:index','1990')).first();
 
-var LandsatComposites = image2020.addBands(image2003).addBands(image1987); 
+var LandsatComposites = image2021.addBands(image2005).addBands(image1990); 
 
 ////////////////////////////////////////////////////////
 //////////////////SNIC//////////////////////////////////
@@ -71,7 +79,7 @@ var snicImagery = ee.Algorithms.Image.Segmentation.SNIC({
   compactness: 1, //degrees of irregularity of the patches from a square 
   }).clip(aoi);
   
-Map.addLayer(snicImagery,{"opacity":1,"bands":["B3_mean","B2_mean","B1_mean"],"min":242.47874114990233,"max":962.1856112670898,"gamma":1},'snicImagey1')
+// Map.addLayer(snicImagery,{"opacity":1,"bands":["B3_mean","B2_mean","B1_mean"],"min":242.47874114990233,"max":962.1856112670898,"gamma":1},'snicImagey1')
 
 //////////////////////////////////////////////////////////
 //////////////SNIC split by bands////////////////////////
@@ -87,17 +95,17 @@ var patchRepSeeds = snicImagery.select(['seeds']);
 
 var SNIC_means_image = patchRepSeeds.multiply(patchRepsMean)//.reproject({  crs: 'EPSG:4326',  scale: 30});//.clip(aoi)
 
-Map.addLayer(SNIC_means_image,{"opacity":1,"bands":["B3_mean","B2_mean","B1_mean"],"min":242.47,"max":962.18,"gamma":1},'SNIC_means_image')
+// Map.addLayer(SNIC_means_image,{"opacity":1,"bands":["B3_mean","B2_mean","B1_mean"],"min":242.47,"max":962.18,"gamma":1},'SNIC_means_image')
 
 // //////////////////////////////////
 // //////////////Export SNIC/////////
 // //////////////////////////////////
 
 Export.image.toDrive({
-        image:snicImagey.toInt32().clip(aoi), 
-        description: 'LaosSNIC_v2_comps', 
-        folder:'LaosSNIC_v2_comps', 
-        fileNamePrefix: "LaosSNIC_v2_comps", 
+        image:snicImagery.toInt32().clip(aoi), 
+        description: place+'_SNIC_c2_comps', 
+        folder:place+'_SNIC_c2_comps', 
+        fileNamePrefix: place+"_SNIC_c2_comps", 
         region:aoi, 
         scale:30, 
         maxPixels: 1e13 
@@ -105,9 +113,9 @@ Export.image.toDrive({
       
 Export.image.toDrive({
         image:SNIC_means_image.toInt32().clip(aoi), 
-        description: 'LaosSNICseed_v2_comps', 
-        folder:'LaosSNIC_v2_comps', 
-        fileNamePrefix: "LaosSNICseed_v2_comps", 
+        description: place+'_SNICseed_c2_comps', 
+        folder:place+'_SNIC_c2_comps', 
+        fileNamePrefix: place+"_SNICseed_c2_comps", 
         region:aoi, 
         scale:30, 
         maxPixels: 1e13 

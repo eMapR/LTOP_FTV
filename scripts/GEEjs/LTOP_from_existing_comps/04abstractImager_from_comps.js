@@ -1,6 +1,6 @@
 //######################################################################################################## 
 //#                                                                                                    #\\
-//#                                         LANDTRENDR LIBRARY                                         #\\
+//#                              04 Sample spectral values for composites                              #\\
 //#                                                                                                    #\\
 //########################################################################################################
 
@@ -13,18 +13,20 @@
 
 
 // Landtrendr test module
-var ltgee = require('users/emaprlab/broberts:lt_collection_2/LandTrendr.js'); 
+var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
 
 // Load in the Abstract image collection. This is made from tiff_v7
-var images = ee.ImageCollection("users/ak_glaciers/abstract_images/laos_abstract_images_ic");
+var images = ee.ImageCollection("users/ak_glaciers/servir_basin_ai_kmeans_pts/servir_basin_ai_kmeans_pts_ic");
 
-// Import a ID layer
-var id_points = ee.FeatureCollection('users/ak_glaciers/abstract_images/abstract_image_ids');
+// Import an ID layer
+var id_points = ee.FeatureCollection('users/ak_glaciers/servir_basin_ai_kmeans_pts/abstract_image_ids_revised_ids');
+// print(id_points.filter(ee.Filter.eq('cluster_id',2190)))
+var place = 'servir_basin_comps_kmeans_pts'
 
 // Rename the bands (can't upload with names as far as I can tell)
 images = images.select(['b1','b2','b3','b4','b5'],['NBR', 'NDVI', 'TCG', 'TCW', 'B5']);
 
-var indexname = "TCW"
+var indexname = "B5"
 
 // Add a time stamp to each image
 images = images.map(add_time_stamp);
@@ -33,9 +35,9 @@ images = images.map(add_time_stamp);
 images = images.map(mask_no_data_values);
 
 // Display the images
-Map.addLayer(images,  {min:[0,-500,0], max:[1000,1000,1500]}, 'Abstract Collection');
-Map.addLayer(id_points, {}, 'ID Points');
-Map.centerObject(images, 16);
+// Map.addLayer(images,  {min:[0,-500,0], max:[1000,1000,1500]}, 'Abstract Collection');
+// Map.addLayer(id_points, {}, 'ID Points');
+// Map.centerObject(images, 16);
 
 // Add a time stamp based on the system:id property
 function add_time_stamp (image) {
@@ -131,12 +133,12 @@ for(var i in printer ){
     }
 }
 
-Map.addLayer(featCol,{},'featCol')
+// Map.addLayer(featCol,{},'featCol')
 
 Export.table.toDrive({
   collection: featCol,
-  description: "LTOP_Laos_abstractImageSample_5000pts_lt_144params_"+indexname+"_v2_comps",
-  folder: "LTOP_Laos_abstractImageSamples_5000pts_v2_comps",
+  description: "LTOP_"+place+"_abstractImageSample_"+indexname+"_v2_comps",
+  folder: "LTOP_"+place+"_abstractImageSample_v2_comps_kmeans_pts",
   fileFormat: 'CSV'
 });
 

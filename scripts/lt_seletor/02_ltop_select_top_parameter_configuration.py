@@ -3,8 +3,8 @@ import os
 import pandas as pd
 import numpy as np
 
-df = pd.read_csv("/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/testing/LTOP_servir_basin_comps_kmeans_pts_testing_full.csv")
-outfile = '/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/testing/LTOP_servir_basin_comps_kmeans_pts_config_selected_for_GEE_upload_new_weights_full.csv'
+df = pd.read_csv("/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/selected_param_config_gee_implementation/LTOP_servir_basin_comps_kmeans_pts_selected_config_revised_new_weights_output_testing_2.csv")
+outfile = '/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/selected_param_config_gee_implementation/LTOP_cambodia_kmeans_pts_config_selected_for_GEE_upload_new_weights_gee_implementation.csv'
 
 def ClusterPointCalc(dframe, clusterPoint_id):
 

@@ -1,6 +1,6 @@
 //######################################################################################################## 
 //#                                                                                                    #\\
-//#                                         LANDTRENDR LIBRARY                                         #\\
+//#                       03 Create abstract images from existing composites                           #\\
 //#                                                                                                    #\\
 //########################################################################################################
 
@@ -10,51 +10,79 @@
 //         Robert Kennedy     | rkennedy@coas.oregonstate.edu
 //         Ben Roberts-Pierel | robertsb@oregonstate.edu
 // website: https://github.com/eMapR/LT-GEE
-var table = ee.FeatureCollection("users/ak_glaciers/LTOP_laos_kmeans_cluster_ids_subsetted")
-var ltgee = require('users/emaprlab/broberts:lt_collection_2/LandTrendr.js'); 
+// var table = ee.FeatureCollection("users/ak_glaciers/LTOP_servir_basin_kmeans_cluster_ids_comps")
+// Map.addLayer(table,{},'original')
 
+var table = ee.FeatureCollection('users/ak_glaciers/servir_basin_abstract_images_comps/LTOP_servir_basin_comps_kmeans_stratified_random_cluster_points')
+print(table.filter(ee.Filter.eq('cluster',2190)))
+table = table.map(function(feat){
+  return feat.set('cluster_id',feat.get('cluster'))
+})
+Map.addLayer(table,{},'kmeans table')
+
+
+var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js');
+var place = 'servir_basin'
 function main () {
   
   // Define the start and the start and end year of the image time series
-  var start_year = 1987;
-  var end_year = 2020;
+  var start_year = 1990;
+  var end_year = 2021;
   
   // Define a feature Collection of the points that need to be extracted
   var points = ee.FeatureCollection(table).sort('cluster_id');
   
-  print(points.first())
-  print(points.size())
+  // print(points.first())
+  // print(points.size())
   
   // Load in the Image Collection
   // var annualSRcollection = ltgee.buildSRcollection(start_year, end_year, startDay, endDay, points,maskThese)
-  var annualSRcollection = ee.ImageCollection('projects/servir-mekong/regionalComposites').filterBounds(aoi)
-  annualSRcollection = annualSRcollection.map(function(img){
-  return img.select(['blue','green','red','nir','swir1','swir2'],['B1','B2','B3','B4','B5','B7'])
-  }); 
+ var yr_images = []; 
+for (var y = 1990;y < 2022; y++){
+  var im = ee.Image("projects/servir-mekong/composites/" + y.toString()); 
+  yr_images.push(im); 
+  
+}
+
+var servir_ic = ee.ImageCollection.fromImages(yr_images); 
+print(servir_ic,'servir ic'); 
+
+//it seems like there is an issue with the dates starting on January 1. This is likely the result of a time zone difference between where 
+//the composites were generated and what the LandTrendr fit algorithm expects from the timestamps. 
+servir_ic = servir_ic.map(function(img){
+  var date = img.get('system:time_start'); 
+  return img.set('system:time_start',ee.Date(date).advance(6,'month').millis()); 
+}); 
+
+//the rest of the scripts will be easier if we just rename the bands of these composites to match what comes out of the LT modules
+//note that if using the SERVIR composites the default will be to get the first six bands without the percentile bands
+var comps = servir_ic.map(function(img){
+  return img.select(['blue','green','red','nir','swir1','swir2'],['B1','B2','B3','B4','B5','B7']);
+});
   // var images = ee.ImageCollection("users/JohnBKilbride/test_medoids")
     //.filterDate(ee.Date.fromYMD(start_year, 1, 1), ee.Date.fromYMD(end_year, 12, 31));
-  Map.addLayer(annualSRcollection, {min:0, max:[1500,5500,1500], bands:['B7','B4','B3']}, 'image');
-  Map.centerObject(table.geometry(), 11);
+  // Map.addLayer(annualSRcollection, {min:0, max:[1500,5500,1500], bands:['B7','B4','B3']}, 'image');
+  // Map.centerObject(table.geometry(), 11);
 
   
   // Compute the spectral indicies to be extracted
-  var images = annualSRcollection.map(compute_indices);
+  var images = comps.map(compute_indices);
 
   // Run the extraction
   var extraction_results = run_extraction(images, points, start_year, end_year);
-  print(extraction_results.size())
+  // print(extraction_results.size())
   
   // Map.addLayer(extraction_results)
   // Select out the relevant fields
   var outputs = extraction_results.select(['cluster_id', 'year', 'NBR', 'TCW', 'TCG', 'NDVI', 'B5'], null, false)//.sort('cluster_id');
-  print(outputs.size())
+  // print(outputs.size())
   
   // Export the points
   Export.table.toDrive({
     collection: outputs, 
-    description: "LTOP_Laos_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_v2_comps", 
-    fileNamePrefix: "LTOP_Laos_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_v2_comps", 
-    folder:'Laos_kmeans',
+    description: "LTOP_"+place+"_Abstract_Sample_Tranformed_NBRTCWTCGNDVIB5_v2_comps_kmeans_pts", 
+    fileNamePrefix: "LTOP_"+place+"_Abstract_Sample_Tranformed_NBRTCWTCGNDVIB5_v2_comps_kmeans_pts", 
+    folder:place+'abstract_Sampler',
     fileFormat: 'csv'
   });
   
@@ -119,7 +147,7 @@ function run_extraction (images, points, start_year, end_year) {
   }
   
   // Create a list of years to map over
-  var years = ee.List.sequence(start_year, end_year);
+  var years = ee.List.sequence(start_year, end_year); 
   
   // Flatten the outputs
   var outputs = ee.FeatureCollection(ee.List(years.map(inner_map)).flatten());
