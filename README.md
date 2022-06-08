@@ -198,7 +198,7 @@ Here we zip and upload the subset of vector points to GEE. Note that you can als
 
 #### 9 Kmeans cluster from SNIC patches (GEE) 
 
-Now we cluster the SNIC patches into similar land class categories. Note that in the original version of LTOP the wekeKmeans algorithm in GEE was producing the specified 5000 clusters. However, in later versions, it will only produce a fraction of that. This means that other scripts downstream of this point are changed to accommodate the different cluster id naming conventions. Note that if you are not running in the lab account and if you are running for a different place you will need to change filepaths to reflect the location of the uploaded points asset.   
+Now we cluster the SNIC patches into similar land class categories. Note that in the original version of LTOP the wekeKmeans algorithm in GEE was producing the specified 5000 clusters. However, in later versions, it will only produce a fraction of that. This means that other scripts downstream of this point are changed to accommodate the different cluster id naming conventions. Note that if you are not running in the lab account and if you are running for a different place you will need to change filepaths to reflect the location of the uploaded points asset. NOTE that this has been changed so that it automatically generates a stratified random sample of points that are then used for subsequent steps. Previously, we were using the 75k randomly sampled points from the SNIC centroids but those were missing some of the kmeans clusters. This script will now generate a task for generating a feature collection of these stratified random points. Run that and replace path to that asset in subsequent scripts.    
 	
 	1. script local location
 
@@ -227,40 +227,8 @@ Now we cluster the SNIC patches into similar land class categories. Note that in
 
 				{task name for 02kMeansCluster.js asset output}
 
-#### 10 Export KMeans seed image to Islay (Moving Data) (OPTIONAL)
 
-Download the Kmeans Seed image. This image looks like the SNIC Seed Image but the pixels values are Kmeans Cluster IDs. This IDs are the links between similar patches. Note that if you have a large enough area you will need to stitch the resultant GEE rasters together using the steps outlined in number 3 above (i.e. make a list of files and then a VRT file from that). 
-
-	0. Open terminal on Islay in a VNC
-
-
-	1. Script location 
-
-		./LTOP_Oregon/scripts/GEEjs/
-
-	2. Activate conda environment “py35”
-
-		conda activate py35
-
-	3. Python script syntax
-
-		python 00_get_chunks_from_gdrive.py <google drive folder name> <local directory>
-
-	4. Python Command
-
-		python ./LTOP_Oregon/scripts/GEEjs/00_get_chunks_from_gdrive.py LTOP_Oregon_Kmeans_v1 ./LTOP_Oregon/rasters/02_Kmeans/gee/
-
-	3. output location
-
-		./LTOP_Oregon/rasters/02_Kmeans/gee/
-
-#### 12 Sample Kmeans raster (alternate replacement for steps 12-14 below)
-
-There is an issue where the subset of 75k points from the SNIC centroids don't always catch all of the available kmeans cluster, especially the very small clusters. One potential way to combat this would be to use points that are from a stratified random sample of the kmeans output raster, instead of reusing the randomly sampled points from the SNIC process. This is easily accomplished in GEE and does not require additional processing in QGIS. 
-
-	1. COME BACK to this - it can be done from the kmeans output but if this is what we're going to do it should be done in the course of the workflow and now as a separate script. 
-
-#### 13 Sample Landsat Image Collections with the xx Kmeans Cluster Points (GEE)
+#### 10 Sample Landsat Image Collections with the xx Kmeans Cluster Points (GEE)
 
 With the subset sample of Kmeans Cluster points, a point for each cluster ID, sample a time series of Landsat Imagery (TCB TCG TCW NBR and NDVI). This sample is exported as a table from GEE. Note that for this and other GEE processes that the dates are not always uniform. 
 
@@ -269,7 +237,7 @@ With the subset sample of Kmeans Cluster points, a point for each cluster ID, sa
 
 	1. script local location
 
-		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/03abstractSampler.js
+		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/LTOP_from_existing_comps/03abstractSampler_from_comps.js
 
 	2. copy and paste script into GEE console 
 	
@@ -286,7 +254,7 @@ With the subset sample of Kmeans Cluster points, a point for each cluster ID, sa
 			LTOP_Oregon_Abstract_Sample_annualSRcollection_Tranformed_NBRTCWTCGNDVIB5_v1.csv		
 
 
-#### 14 Download CSV from Google Drive (Moving Data)
+#### 11 Download CSV from Google Drive (Moving Data)
 
 Download the table 
 
@@ -296,10 +264,10 @@ Download the table
 
 	2) location (islay)
 
-		./LTOP_Oregon/tables/abstract_sample_gee/
+		./LTOP_mekong/csvs/01_abstract_images/
 
 
-#### 15 Create Abstract image with CSV (python) 
+#### 12 Create Abstract image with CSV (python) 
 
 Here we create an abstract image. We start with the table that contains a time series of spretral values for 5000 points. These points locations are moved to be adjsent to one aonther, and are turned into pixels with each observation in the time series a new image of pixels. This script exports a TIFF image for every year in the time series and a new point vector file at each pixel locaton. 
  
@@ -335,7 +303,7 @@ Here we create an abstract image. We start with the table that contains a time s
 
 
 
-#### 16 Upload rasters to GEE and make image collection (Moving Data)
+#### 13 Upload rasters to GEE and make image collection (Moving Data)
 
 We then upload the abstract images to GEE
 
@@ -352,7 +320,7 @@ We then upload the abstract images to GEE
 	5) add each abstract image to image collection
 
 
-#### 17 Upload SHP to GEE (Moving Data)
+#### 14 Upload SHP to GEE (Moving Data)
 
 Upload the shp file that acompanied the abstract image.
 
@@ -367,17 +335,17 @@ Upload the shp file that acompanied the abstract image.
 	3) Upload to GEE 
 
 
-#### 18 Run Abstract image for each index (GEE). This runs pretty fast (approx. 5 mins for each index). 
+#### 15 Run Abstract image for each index (GEE). This runs pretty fast (approx. 5 mins for each index). 
 
 
 
 	1. script local location
 
-		./LTOP_Oregon/scripts/GEEjs/04abstractImager.js
+		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/LTOP_from_existing_comps/04abstractImager_from_comps.js
 
 	2. copy and paste script into GEE console 
 	
-	2. Make sure you all needed dependencies 
+	2. Make sure you have all needed dependencies 
 
 	3. Review in script parameters.
 
@@ -385,7 +353,7 @@ Upload the shp file that acompanied the abstract image.
 
 		b) run script for each index 'NBR', 'NDVI', 'TCG', 'TCW', 'B5'
 
-			i) editing line 18 to change index name
+			i) edit line 18 to change index name
 
 	4. Run script
 
@@ -401,7 +369,8 @@ Upload the shp file that acompanied the abstract image.
 							LTOP_Cambodia_abstractImageSample_220pts_lt_144params_TCG_c2_revised_ids
 							LTOP_Cambodia_abstractImageSample_220pts_lt_144params_TCW_c2_revised_ids
  
-#### 19 Download folder containing CSV‘s one for each index (Moving Data)
+#### 16 Download folder containing CSV‘s one for each index (Moving Data) (OPTIONAL)
+This can also be done manually if you are not on an eMapr lab account or are not setup to automatically download from Gdrive. 
 
 	1) script location 
 
@@ -417,8 +386,8 @@ Upload the shp file that acompanied the abstract image.
 
 		./LTOP_Oregon/tables/LTOP_Oregon_Abstract_Image_LT_data/
 
-#### 20 Select the correct weighting scheme/values for model selection. We want to apply weights to the AIC and vertex scores from the Pareto curve to (de)emphasize one score or the other based on
-the output of the interpreter data. 
+#### 17 Select the correct weighting scheme/values for model selection. We want to apply weights to the AIC and vertex scores from the Pareto curve to (de)emphasize one score or the other based on
+the output of the interpreter data. This section is kind of a one time thing. Once you settle on the correct weights you should not have to do this again. What has not been tested here is whether those weights would need to be adjusted for another part of the world. 
 
 	1) script location
 
@@ -434,7 +403,7 @@ the output of the interpreter data.
 
 	 python /vol/v1/proj/LTOP_mekong/peter_scripts/scripts/revised_weighting/create_weighting_scheme_from_interpreters.py
 
-#### 21 Run LT Parameter Scoring scripts (Python). Note that since the change in the number of kmeans clusters this runs much faster than it did before when there were always 5000 clusters. 
+#### 18 Run LT Parameter Scoring scripts (Python). Note that since the change in the number of kmeans clusters this runs much faster than it did before when there were always 5000 clusters. 
 
 	1) script locaton
 
@@ -459,7 +428,7 @@ the output of the interpreter data.
 
 		python ./LTOP_mekong/LTOP_FTV/scripts/lt_seletor/01_ltop_lt_paramater_scoring_reweighted_revised.py
 
-#### 22 Run LTOP Parameter Selecting Script (Python). This script runs very quickly (a few mins). 
+#### 19 Run LTOP Parameter Selecting Script (Python). This script runs very quickly (a few mins). 
 
 
 	1) script location
@@ -482,7 +451,7 @@ the output of the interpreter data.
 
 		python ./LTOP_Oregon/scripts/lt_seletor/02_ltop_select_top_parameter_configuration.py
 
-#### 23 Upload CSV to GEE (Moving Data)
+#### 20 Upload CSV to GEE (Moving Data)
 
 	1) CSV location 
 
@@ -491,11 +460,11 @@ the output of the interpreter data.
 	2) Upload CSV as an asset to GEE	
 
 	
-#### 24 Generate LTOP image in GEE (GEE). When the processing shifted from a set 5000 kmeans clusters to the algorithm assigned clusters this got much faster. 
+#### 21 Generate LTOP image in GEE (GEE). When the processing shifted from a set 5000 kmeans clusters to the algorithm assigned clusters this got much faster. 
 
 	1) script location
 
-		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/05lt-Optumum-Imager.js
+		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/LTOP_from_existing_comps/05ltoptimumImager_from_comps.js
 
 	2) Edit and review script
 
@@ -507,32 +476,11 @@ the output of the interpreter data.
 
 		to drive task
 
-#### 25 Download LTOP imagery (Moving Data)- optional if you're working with assets in the previous step. 
+#### 22 This is the end of the 'official' LTOP workflow
 
-	0) Open terminal on Islay in a VNC
+#### The following steps are optional and subject to change 
 
-
-	1) Script location 
-
-		./LTOP_Oregon/scripts/GEEjs/
-
-	2) Activate conda environment “py35”
-
-		conda activate py35
-
-	3) Python script syntax
-
-		python 00_get_chunks_from_gdrive.py <google drive folder name> <local directory>
-
-	4) Run script 
-
-		python 00_get_chunks_from_gdrive.py LTOP_Oregon_image_withVertYrs_NBR /LTOP_Oregon/rasters/04_LTOP_Image_NBR/
-		
-	5) Check data at download destination. 
-
-		./LTOP_Oregon/rasters/01_SNIC/
-
-#### 26 Use the LTOP breakpoints/vertices outputs to create fitted Landtrendr like outputs. This uses vertices from the LTOP process and the LT-fit algorithm. This step may become optional if the same images are used for the LTOP process and change detection. 
+#### 23 Use the LTOP breakpoints/vertices outputs to create fitted Landtrendr like outputs. This uses vertices from the LTOP process and the LT-fit algorithm. This step may become optional if the same images are used for the LTOP process and change detection. 
 
 	1) script location
 		./LTOP_mekong/LTOP_FTV/scripts/GEEjs/06lt_TransferFTV.js
@@ -543,7 +491,7 @@ the output of the interpreter data.
 
 	4) Run task to export a fitted array image to an asset. 
 
-#### 27 Use the FTV outputs to create change detection maps using existing change map modules from the public LandTrendr.js scripts. This either takes the outputs of 28 above or the LTOP outputs need to be amended to create these images that mimic the regular LT outputs. 
+#### 24 Use the FTV outputs to create change detection maps using existing change map modules from the public LandTrendr.js scripts. This either takes the outputs of 28 above or the LTOP outputs need to be amended to create these images that mimic the regular LT outputs. 
 
 	1) script location: 
 		"/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/GEEjs/07_Optimized_change_detection.js"
