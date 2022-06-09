@@ -1,6 +1,6 @@
 //######################################################################################################## 
 //#                                                                                                    #\\
-//#                                          LandTrendr Optimization (LTOP) library                    #\\
+//#                                  LandTrendr Optimization (LTOP) library                            #\\
 //#                                                                                                    #\\
 //########################################################################################################
 
@@ -15,6 +15,7 @@
 //  This program takes a raster stack of images and constellates pixels that are spectrally similar around a 
 //  seed pixel. The rasters used are harmonized landsat images for a given date window in a year over a yearly 
 //  time series.   
+var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// 01 SNIC ////////////////////////////////////////////////////////////
@@ -66,65 +67,51 @@ var pixelsToPts = function(img,aoi){
   return ee.FeatureCollection(vectors); 
 }; 
 
-//try reduceToVectors
-// var pixelsToPts = function(img,aoi){
-//   var vectors = img.reduceToVectors({
-//     geometry:aoi, 
-//     scale:30, 
-//     geometryType:'centroid',
-//     maxPixels:1e13
-//   });
-//   return vectors; 
-  
-// }; 
-
-
 // exports.pixelsToPts = pixelsToPts;  
 
 //subset fc
-var subsetFC = function(fc,grid_pts_max){
+var subsetFC = function(fc,pts_per_tile){
   var output_fc = fc.randomColumn({
   columnName:'random',
   seed:2,
   distribution:'uniform'
   }); 
   output_fc = ee.FeatureCollection(output_fc.sort('random')
-                                            .toList(grid_pts_max)
-                                            .slice(0,grid_pts_max)); 
+                                            .toList(pts_per_tile)
+                                            ); 
+                                            // .slice(0,pts_per_grid)); 
   return output_fc; 
 }; 
 
 // exports.subsetFC = subsetFC; 
 //there is an issue where GEE complains if we straight convert pixels to points because there are too many. Try tiling the image and converting those first. 
-var splitPixImg = function(means_img,grid,pts_max){
-  // var grid = aoi.coveringGrid('EPSG:4326', grid_scale); 
-  // grid = grid.filterBounds(aoi); 
+var splitPixImg = function(means_img,grid,pts_per_tile){
   //we map over the grid tiles, subsetting the image
-  var num_pts = 200//(ee.Number(pts_max).divide(ee.Number(grid.size()))).toInt(); 
-  // var tile_pts = grid.map(function(feat){
-  var tile_bounds = grid.geometry().buffer(-250)
-  // var img_tile = means_img.clip(tile_bounds); 
+  var tile_pts = grid.map(function(feat){
+  var tile_bounds = feat.geometry().buffer(-250); //could be changed
+  var img_tile = means_img.clip(tile_bounds); //remove this if it errors 
   var pts = pixelsToPts(means_img,tile_bounds); 
   //try subsetting the points here before putting them back together to reduce the size of the dataset 
-  pts = subsetFC(pts,num_pts); 
-  return pts 
-  // }); 
-  // return tile_pts.flatten(); 
+  pts = subsetFC(pts,pts_per_tile); 
+  return pts;  
+  }); 
+  return tile_pts.flatten(); 
 }; 
 
 exports.splitPixImg = splitPixImg; 
 
 var samplePts = function(pts,img){
-  var output = img.reduceRegions({
-    collection:pts, 
-    reducer: ee.Reducer.first(), 
-    scale: 30
+  var output = pts.map(function(pt){
+    var value = img.reduceRegion({
+    reducer:ee.Reducer.first(), 
+    geometry:pt.geometry(),
+    scale:30
+    
+    }); 
+  return ee.Feature(pt.geometry(),value); 
   }); 
-  return output; 
+  return ee.FeatureCollection(output); 
 }; 
-
-exports.samplePts = samplePts; 
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// 02 kMeans //////////////////////////////////////////////////////////
@@ -298,7 +285,7 @@ var getPoint2 = function(geom,img, z) {
 
 };
 
-var runLTversions = function(ic,indexName){
+var runLTversions = function(ic,indexName,id_points){
   // here we map over each LandTrendr parameter varation, applying each varation to the abstract image 
   var printer = runParams.map(function(param){
 
@@ -371,7 +358,7 @@ exports.mergeLToutputs = mergeLToutputs;
 
 //write a new general function that takes the place of all the copied functions below - plan to map this over the lists above
 //input args are the index tables above and the associated imageCollection
-var printerFunc = function(fc,ic,cluster_image){
+var printerFunc = function(fc,ic,cluster_image,aoi){
   var output = fc.map(function(feat){
     //changes feature object to dictionary
     var dic = ee.Feature(feat).toDictionary();
@@ -437,5 +424,178 @@ var filterTable = function(pt_list,index){
 }; 
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// Invoking functions /////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//now set up functions for calling each step?? 
+
+//////////////////////////////////////////////////////
+//////////////////////////////// 01 SNIC /////////////
+//////////////////////////////////////////////////////
+function snic01 (snic_composites,aoi,grid_scale,epsg,pts_per_tile){
+  //run the SNIC algorithm   
+  var SNICoutput = runSNIC(snic_composites,aoi); 
+  var SNICpixels = SNICmeansImg(SNICoutput,aoi); 
+  
+  //these were previously the two things that were exported to drive 
+  var SNICimagery = SNICoutput.toInt32()//.reproject({  crs: 'EPSG:4326',  scale: 30}); //previously snicImagery
+  var SNICmeans = SNICpixels.toInt32().clip(aoi); //previously SNIC_means_image
+  
+  //create a grid to subtile the snic images
+  var grid = aoi.coveringGrid(epsg, grid_scale).filterBounds(aoi); //the int here is a bit variable
+ 
+  var snicPts = splitPixImg(SNICmeans.select('clusters'),grid,pts_per_tile); 
+  
+  //do the sampling 
+  snicPts = samplePts(snicPts,SNICimagery); 
+  
+  return ee.List([snicPts,SNICimagery]); 
+// return null
+  
+}
+
+exports.snic01 = snic01; 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// 02 kMeans //////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+function kmeans02 (snicPts,SNICimagery,aoi){
+  //take the snic outputs from the previous steps and then train and run a kmeans model
+  var snicKmeansImagery = ee.Image(SNICimagery).select(["B1_mean", "B2_mean",  "B3_mean",  "B4_mean",  "B5_mean",  "B7_mean",  "B1_1_mean",  "B2_1_mean",  "B3_1_mean",  "B4_1_mean",  "B5_1_mean","B7_1_mean",  "B1_2_mean",  "B2_2_mean",  "B3_2_mean",  "B4_2_mean",  "B5_2_mean",  "B7_2_mean"]); 
+  var kMeansImagery = runKmeans(snicPts, 5001,aoi,snicKmeansImagery); 
+  var kMeansPoints = selectKmeansPts(kMeansImagery,aoi); 
+  // return kMeansPoints
+  return ee.List([kMeansImagery,kMeansPoints]); 
+}
+
+exports.kmeans02 = kmeans02; 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// 03 abstractSampler /////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+function abstractSampler03_1 (full_timeseries, kMeansPts, startYear, endYear){
+//rename the kmeans points dataset cluster col to cluster_id, that's what the remaining scripts expect
+kMeansPts = kMeansPts.map(function(feat){
+  return feat.set('cluster_id',feat.get('cluster'))
+})
+
+//add spectral indices to the annual ic
+var images_w_indices = computeIndices(full_timeseries); 
+
+//extract values from the composites at the points created in the kmeans step above 
+var spectralExtraction = runExtraction(images_w_indices, kMeansPts, startYear, endYear);
+  
+// Select out the relevant fields
+var abstractImageOutputs = spectralExtraction.select(['cluster_id', 'year', 'NBR', 'TCW', 'TCG', 'NDVI', 'B5'], null, false);//.sort('cluster_id');
 
 
+return abstractImageOutputs; 
+}
+
+exports.abstractSampler03_1 = abstractSampler03_1; 
+
+function abstractSampler03_2(img_path,startYear,endYear){
+  //this has to be called separately after the first half is dealt with outside GEE
+  //replaces the manual creation of an imageCollection after uploading abstract images 
+  var abstractImages = []; 
+  for (var y = startYear; y < endYear+1; y++){
+    var img = ee.Image(img_path+y.toString()); 
+    abstractImages.push(img); 
+  }
+  //this is the primary input to the 04 script 
+  var abstractImagesIC = ee.ImageCollection.fromImages(abstractImages); 
+  return abstractImagesIC; 
+}
+
+exports.abstractSampler03_2 = abstractSampler03_2
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// 04 abstractImager /////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+function abstractImager04(abstractImagesIC,place,id_points){
+  //wrap this into a for loop
+  var indices = ['NBR', 'NDVI', 'TCG', 'TCW', 'B5']; 
+  // Add a time stamp to each image
+  abstractImagesIC = abstractImagesIC.map(addTimeStamp);
+
+  // Mask the "no-data" values
+  abstractImagesIC = abstractImagesIC.map(maskNoDataValues);
+  
+  // Rename the bands (can't upload with names as far as I can tell)
+  abstractImagesIC = abstractImagesIC.select(['b1','b2','b3','b4','b5'],indices); //changed to uppercase
+    
+  for(var i in indices){
+    
+    //this calls the printer function that runs different versions of landTrendr
+    var multipleLToutputs = runLTversions(abstractImagesIC,indices[i],id_points); 
+    
+    //this merges the multiple LT runs
+    var combinedLToutputs = mergeLToutputs(multipleLToutputs); 
+    
+    //then export the outputs - the paramater selection can maybe be done in GEE at some point but its 
+    //a big python script that needs to be translated into GEE 
+    Export.table.toDrive({
+      collection: combinedLToutputs,
+      description: "LTOP_"+place+"_abstractImageSample_lt_144params_"+indices[i]+"_c2_revised_ids",
+      folder: "LTOP_"+place+"_abstractImageSamples_c2_revised_ids",
+      fileFormat: 'CSV'
+    }); 
+  }
+  return null; 
+}
+
+exports.abstractImager04 = abstractImager04; 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// 05 Optimized Imager ////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//the primary inputs for this are the kmeans image and the selected params 
+//kmeans image output
+// var cluster_image = ee.Image("users/ak_glaciers/ltop_snic_seed_points75k_kmeans_cambodia_c2_1990")
+// Map.addLayer(cluster_image,{},'cluster image')
+// //selected params from the two python scripts that come after the 04 script 
+// var table = ee.FeatureCollection("users/ak_glaciers/LTOP_Cambodia_config_selected_220_kmeans_pts_new_weights");
+
+// cast the feature collection (look up table) to list so we can filter and map it. Note that the number needs to be adjusted here 
+//to the number of unique cluster ids in the kmeans output 
+
+function optimizedImager05(table,annualSRcollection,kmeans_output,aoi){
+  var lookUpList =  table.toList(table.size());   
+  
+  //transformed Landsat surface reflectance image collection - this likewise would need to be changed for more indices 
+  var annualLTcollectionNBR = ltgee.buildLTcollection(annualSRcollection, 'NBR', ["NBR"]).select(["NBR","ftv_nbr"],["NBR","ftv_ltop"]); 
+  var annualLTcollectionNDVI = ltgee.buildLTcollection(annualSRcollection, 'NDVI', ["NDVI"]).select(["NDVI","ftv_ndvi"],["NDVI","ftv_ltop"]); 
+  var annualLTcollectionTCW = ltgee.buildLTcollection(annualSRcollection, 'TCW', ["TCW"]).select(["TCW","ftv_tcw"],["TCW","ftv_ltop"]); 
+  var annualLTcollectionTCG = ltgee.buildLTcollection(annualSRcollection, 'TCG', ["TCG"]).select(["TCG","ftv_tcg"],["TCG","ftv_ltop"]); 
+  var annualLTcollectionB5 = ltgee.buildLTcollection(annualSRcollection, 'B5', ["B5"]).select(["B5","ftv_b5"],["B5","ftv_ltop"]); 
+  
+  //now call the function for each index we're interested in 
+  var printerB5 = printerFunc(filterTable(lookUpList,'B5'), annualLTcollectionB5, kmeans_output,aoi); 
+  var printerNBR = printerFunc(filterTable(lookUpList,'NBR'), annualLTcollectionNBR, kmeans_output,aoi); 
+  var printerNDVI = printerFunc(filterTable(lookUpList,'NDVI'), annualLTcollectionNDVI, kmeans_output,aoi); 
+  var printerTCG = printerFunc(filterTable(lookUpList,'TCG'), annualLTcollectionTCG, kmeans_output,aoi);
+  var printerTCW = printerFunc(filterTable(lookUpList,'TCW'), annualLTcollectionTCW, kmeans_output,aoi);
+  
+  // concat each index print output together
+  var combined_lt = printerB5.cat(printerNBR).cat(printerNDVI).cat(printerTCG).cat(printerTCW); 
+  
+  //Mosaic each LandTrendr run in list to single image collection
+  var ltcol = ee.ImageCollection(combined_lt).mosaic(); 
+  
+  var params = { 
+    timeSeries: ee.ImageCollection([]),
+    maxSegments: 10,
+    spikeThreshold: 5,
+    vertexCountOvershoot: 3,
+    preventOneYearRecovery: true,
+    recoveryThreshold: 5,
+    pvalThreshold: 5,
+    bestModelProportion: 0.75,
+    minObservationsNeeded: 5
+  };
+  
+  //create the vertices in the form of an array image
+  var lt_vert = ltgee.getLTvertStack(ltcol, params).select([0,1,2,3,4,5,6,7,8,9,10]).int16(); 
+  
+  return lt_vert; 
+  
+}
+
+
+exports.optimizedImager05 = optimizedImager05; 
