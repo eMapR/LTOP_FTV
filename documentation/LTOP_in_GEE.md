@@ -4,7 +4,7 @@ LandTrendr is a set of spectral-temporal segmentation algorithms that focuses on
 
 One impediment to running LT over large geographic domains is selecting the best paramater set for a given landscape. The LandTrendr GEE function uses 9 arguments: 8 parameters that control how spectral-temporal segmentation is executed, and an annual image collection on which to assess and remove the natural variations. The original LandTrendr article (Kennedy et al., 2010) illustrates some of the effects and sensitivity of changing some of these values. The default parameters for the LandTrendr GEE algorithm do a satisfactory job in many circumstances, but extensive testing and time is needed to hone the parameter selection to get the best segmentation out of the LandTrendr algorithm for a given region. Thus, augmenting the LandTrendr parameter selection process would save time and standardize a method to choose parameters, but we also aim to take this augmentation a step further. 
 
-Traditionally, LandTrendr is run over an image collection with a single LandTrendr parameter configuration and is able to remove natural variation for every pixel time series in an image. But no individual LandTrendr parameter configuration is best for all surface conditions. For example, one paramater set might be best for forest cover change while another might be preferred for agricultural phenology or reservoir flooding. To address this shortcoming, we developed a method that delineates patches of spectrally similar pixels from input imagery and then finds the best LandTrendr parameters group. We then run LandTrendr on each patch group location with a number of different paramater sets and assign scores to decide on the best parameter configuration. 
+Traditionally, LandTrendr has been run over an image collection with a single LandTrendr parameter configuration and is able to remove natural variation for every pixel time series in an image. But no individual LandTrendr parameter configuration is best for all surface conditions. For example, one paramater set might be best for forest cover change while another might be preferred for agricultural phenology or reservoir flooding. To address this shortcoming, we developed a method that delineates patches of spectrally similar pixels from input imagery and then finds the best LandTrendr parameters group. We then run LandTrendr on each patch group location with a number of different paramater sets and assign scores to decide on the best parameter configuration. 
 ### LTOP Work Flow (Step by Step) 
 
 [GEE link](https://code.earthengine.google.com/https://code.earthengine.google.com/?accept_repo=users/emaprlab/SERVIR) open with Emapr Account for dependencies 
@@ -82,15 +82,11 @@ Download the table
 
 #### 5 Create Abstract image with CSV (python) 
 
-Here we create an abstract image. We start with the table that contains a time series of spretral values for 5000 points. These points locations are moved to be adjsent to one aonther, and are turned into pixels with each observation in the time series a new image of pixels. This script exports a TIFF image for every year in the time series and a new point vector file at each pixel locaton. 
- 
-[image of orignal points]
-[image of move points]
-[image of abstract image] 
+Here we create an abstract image. We start with the table that contains a time series of spretral values for xx points. These points locations are moved to be adjsent to one aonther, and are turned into pixels with each observation in the time series a new image of pixels. This script exports a TIFF image for every year in the time series and a new point vector file at each pixel locaton. Note that if you look at these in a GIS GUI or on GEE they will be in a weird location like in the middle of the Pacific Ocean. Don't worry about that, that is what should happen. 
 
 	1. Script Location 
 
-		./LTOP_mekong/LTOP_FTV/scripts/abstractImageSampling/csv_to_abstract_images_5k_update.py
+		https://github.com/eMapR/LTOP_FTV/blob/master/scripts/abstractImageSampling/csv_to_abstract_images_5k_update.py
 
 	2. Make sure the start and end years are correctly specified. This likely needs to be amended. 
 
@@ -102,9 +98,9 @@ Here we create an abstract image. We start with the table that contains a time s
 
 		a. specify the output directory for abstract image rasters
 
-		b) specify the output directory for output shapefile. This is the pixel centroids for the abstract image pixels. 
+		b. specify the output directory for output shapefile. This is the pixel centroids for the abstract image pixels. 
 
-	5. Run Command  (example- specify the location of the script)
+	5. Run script:   
 
 		python csv_to_abstract_images_5k_update.py
 
@@ -124,7 +120,7 @@ We then upload the abstract images to GEE
 
 Upload the shp file that acompanied the abstract image.
 
-	1) Upload the shapefile that was created in step 5 above as an asset to GEE. 
+	1. Upload the shapefile that was created in step 5 above as an asset to GEE. 
 
 
 #### 8 Run Abstract image for each index (GEE). The modules script is going to implement a four loop to run all indices. 
@@ -151,13 +147,13 @@ Upload the shp file that acompanied the abstract image.
 
 	2. Edit line 121 as the input directory of csv files
 
-		a) input directory 
+		a. input directory 
 
 			./path/to/local_directory/csvs/02_param_selection/*place*_revised_ids/
 
 	3. Edit line 626 as the output csv file
 
-		a) output line 563
+		a. output line 563
 
 			/path/to/local_directory/csvs/02_param_selection/selected_param_config/LTOP_cambodia_selected_config_revised_new_weights.csv
 
@@ -194,17 +190,17 @@ Upload the shp file that acompanied the abstract image.
 
 		/path/to/local_directory/tables/LTOP_*place*_selected_configurations/LTOP_*place*_config_selected.csv
 
-	2. Upload CSV as an asset to GEE	
+	2. Upload CSV created in step 11 as an asset to GEE	
 
 	
-#### 13 Generate LTOP image in GEE (GEE). When the processing shifted from a set 5000 kmeans clusters to the algorithm assigned clusters this got much faster. This will generate a GEE asset which is the primary output of the LTOP process. This will be a multiband image with one band up to the max number of vertices. Defaults to 11 in the LTOP workflow.
+#### 13 Generate LTOP output in GEE. This will generate a GEE asset which is the primary output of the LTOP process. This will be a multiband image with one band up to the max number of vertices. Defaults to 11 in the LTOP workflow.
 
-	1) script location: https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/05_generate_LTOP.js
+	1. script location: https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/05_generate_LTOP.js
 
-	2) Edit and review script
+	2. Edit and review script
 
-	3) run script
+	3. run script
 
-	4) Run Task
+	4. Run Task
 	
 
