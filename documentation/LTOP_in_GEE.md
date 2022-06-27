@@ -11,12 +11,12 @@ Traditionally, LandTrendr is run over an image collection with a single LandTren
 
 ![img](https://lh4.googleusercontent.com/qpYv4_Q9InR0_LBzk1vdtIWhfLmMRNwZ840DSv6h0CzETzPjd2n6pgQP24eiHFQLfTKp3Tr17yLoqwdRfPeNb_YyktC60kTGnQulL7UwiLoQit-OyJJ3H_vI25-GE06J20ab_YeO=s0)
 
-NOTE: The below work flow is for southeast Asia. So file paths to data sets are symbolic. To Islay they are real from `vol/v1/proj`.  
 
-The scripts to execute the following workflow are located at:  
-/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/GEEjs/workflow_version_2_0/
+#### NOTES on preparing to run the LTOP workflow
 
-The general setup is that the five major steps are laid out in short, simple scripts. Each of these scripts call functions in the modules library to do the work. Ideally, the user does not need to look at the modules script if they don't want to. You should create a folder to hold all the intermediary GEE outputs or you can uncomment the data creation section in the first script and let GEE do it. 
+We suggest that you create a dedicated directory on a local drive to hold scripts and intermediate outputs of the LTOP workflow. This can be created by [cloning](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) our [GitHub repo](https://github.com/eMapR/LTOP_FTV/tree/master/scripts). You can then create basic container directories for intermediate outputs (e.g., rasters, vectors, csvs). 
+
+The general setup for this implementation of LTOP relies on five major steps laid out in short, simple scripts. Each of these scripts call functions in the [modules library](https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/LTOP_modules_version_2_0.js) to do the work. Ideally, the user does not need to look at the modules script if they don't want to. You should create a folder to hold all the intermediary GEE outputs or you can uncomment the data creation section in the first script and let GEE do it. 
 
 
 #### 1 Run 01_run_SNIC in GEE to generate SNIC images (GEE)
