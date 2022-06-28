@@ -51,10 +51,10 @@ if __name__ == "__main__":
     ######################## PARAMETERS TO BE SET BY USER ####################
     
     # Load in the "abstract images" csv
-    input_data = pd.read_csv("/vol/v1/proj/LTOP_mekong/csvs/01_abstract_images/GEE_LTOP/LTOP_Cambodia_Abstract_Sample_annualSRcollection_NBRTCWTCGNDVIB5_c2_1990_start_renamed.csv")
+    input_data = pd.read_csv("/vol/v1/proj/LTOP_mekong/csvs/01_abstract_images/GEE_LTOP/LTOP_test_geometry_Abstract_Sample_annualSRcollection_NBRTCWTCGNDVIB5_c2_1990_start_renamed.csv")
     # Define the output directory for the abstract images and the shapefile
-    output_directory_raster = "/vol/v1/proj/LTOP_mekong/rasters/03_AbstractImage/cambodia_gee_implementation/"
-    output_directory_shp = "/vol/v1/proj/LTOP_mekong/vectors/03_abstract_image_pixel_points/cambodia_gee_implementation/"
+    output_directory_raster = "/vol/v1/proj/LTOP_mekong/rasters/03_AbstractImage/test_geometry_gee_implementation/"
+    output_directory_shp = "/vol/v1/proj/LTOP_mekong/vectors/03_abstract_image_pixel_points/test_geometry_gee_implementation/"
 
     if not os.path.exists(output_directory_raster): 
         os.mkdir(output_directory_raster)

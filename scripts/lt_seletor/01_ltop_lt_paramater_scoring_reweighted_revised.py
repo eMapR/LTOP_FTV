@@ -118,7 +118,7 @@ def read_in_CSVs():
 
 	# get a list of file names
 	#files = glob.glob('/media/peter/vol1/v1/ltop_test_local/abstract_image/abstact_sample/SERVIR_abstractImageSamples_5001pts_v1/*.csv')
-	files = glob.glob("/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/cambodia_gee_implementation/*.csv")
+	files = glob.glob("/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/test_geometry_gee/*.csv")
 	# files = glob.glob('./SERVIR_abstractImageSamples_5001pts_v1/*.csv')
 	print(files)
 	#file_list = [filename for filename in files if filename.split('.')[1]=='csv']
@@ -623,7 +623,7 @@ def main():
 		addValuesToNewColumns(index, row,df)
 
 
-	outfile = "/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/selected_param_config_gee_implementation/LTOP_servir_basin_comps_kmeans_pts_selected_config_revised_new_weights_output_testing_2.csv"
+	outfile = "/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/selected_param_config_gee_implementation/LTOP_test_geometry_gee_implementation_kmeans_pts_selected_config_revised_new_weights.csv"
 
 	df.to_csv(outfile, index=False)
 
