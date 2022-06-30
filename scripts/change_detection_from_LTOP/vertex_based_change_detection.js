@@ -1,7 +1,8 @@
-// #####################################################################################
-// ########## Script to implement annual change detection processing
-// #####################################################################################
-
+//######################################################################################################## 
+//#                                                                                                    #\\
+//#                              LT vertex-based change detection                               #\\
+//#                                                                                                    #\\
+//########################################################################################################
 //get the data inputs 
 // date: 2022-02-03
 // author: Ben Roberts-Pierel | robertsb@oregonstate.edu
@@ -9,48 +10,44 @@
 //         Robert Kennedy     | rkennedy@coas.oregonstate.edu
 // website: https://github.com/eMapR/LT-GEE
 
-//  This program takes eleven inputs:
-// 1.  An aoi of your study area
-// 2.  The cluster image from the Kmeans process. This was an input for the 05lt_Optimum_Imager.js script 
-// 3.  The selected LandTrendr params from the LTOP process that was also used in the 05lt_Optimum_Imager.js script. This should line up with the kmeans clusters.
-// 4.  The image that is the output of the 05lt_Optimum_Imager.js script. This should be an array image with all the breakpoints (vertices) (up to the maxSegments specified).
-// 5.  Image stack that you want to apply the breakpoints to (fit). This script was written with SERVIR composites in mind. 
-// 6.  Modules from LandTrendr.js public script
-// 7.  Start year, this should be the first year in your image stack 
-// 8.  End year, this should be the last year in your image stack 
-// 9.  LTOP band - this is kind of clunky but you just need to define a band name that is in line with the naming convention of the breakpoints image but does not 
-//     exist in that image. This could be automated as well. 
-// 10. Min obvs for the LandTrendr fit algorithm. This needs to be less than the number of images in the stack 
-// 11. export band, this is the band (or index) from the SERVIR composites that you want to manipulate and export at the end of the script. Available bands are still in 
-//     flux as of 2/18/2022 but they can be viewed in the second section below. 
+//Notes on inputs: 
+// 1.  cluster_image - this was one of the outputs of the 02 kmeans script and an input for the 05lt_Optimum_Imager.js script 
+// 2.  table - the selected LandTrendr params from the LTOP process that was also used in the 05lt_Optimum_Imager.js script. This should be from the same run as the previous arg.
+// 3.  lt_vert - the image that is the output of the 05lt_Optimum_Imager.js script. This should be an array image with all the breakpoints (vertices) (up to the maxSegments specified).
+// 4. export band - this is the band (or index) from the SERVIR composites that you want to manipulate and export at the end of the script. 
+// 5. comps_source - this is just used for naming purposes
+// 6. vertex_output - passing 'fill' or another string to the fillSegmentYear function will output segment lengths
+//    passing an empty list will yield the year of the closest segment
+// 7. asset_folder - this is a folder in your asssets directory where you want the outputs to end up
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//import modules
+var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
+var ftv_prep = require('users/emaprlab/broberts:LTOP_mekong/06lt_Transfer_FTV_modules.js'); 
 
 //USER DEFINED INPUTS/PARAMS
-//inputs and user specified args (NOTE: change the geometry we're clipping to, currently just set up as a test)
 var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA','Cambodia')).geometry().buffer(5000);
-// //image stack
-// var servir_ic = ee.ImageCollection('projects/servir-mekong/regionalComposites').filterBounds(geometry2); 
 //kmeans cluster image
 var cluster_image = ee.Image("users/ak_glaciers/ltop_snic_seed_points75k_kmeans_cambodia_c2_1990"); 
 //selected LT params
 var table = ee.FeatureCollection("users/ak_glaciers/LTOP_Cambodia_config_selected_220_kmeans_pts_new_weights");
 //vertices image from LTOP
 var lt_vert = ee.Image("users/ak_glaciers/Optimized_LT_1990_start_Cambodia_remapped_cluster_ids").clip(aoi);
-Map.addLayer(lt_vert,{},'lt vert'); 
-//import modules
-var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
-var ftv_prep = require('users/emaprlab/broberts:LTOP_mekong/06lt_Transfer_FTV_modules.js'); 
 
 var startYear = 1990; 
 var endYear = 2021; 
 var place = 'Cambodia'; 
 var min_obvs = 11;  
 var export_band = 'NBR_fit'; 
-var comps_source = 'servir'
+var comps_source = 'servir'; 
+var vertex_output = 'fill'; 
+var asset_folder = 'reem_cf_outputs'; 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-//now prep the imageCollection and the LT breakpoints from the LTOP process
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//prep input composites
 
 //first the composites 
 var yr_images = []; 
@@ -98,16 +95,20 @@ return b5.addBands(b7)
 var breakpoints = ftv_prep.prepBreakpoints(lt_vert); 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
-//now do the actual LandTrendr work
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+//the outputs of the LTOP workflow consist mostly of an array image of LT breakpoints. We use LT fit to generate
+//fitted outputs from those breakpoints using the included composites. These things are based on the functions included in 
+//the ftv_prep script which is imported at the beginning of this script. 
+
 //run lt fit 
 var lt_fit_output = ftv_prep.runLTfit(table,servir_ic,breakpoints,cluster_image,min_obvs); 
+
+//create a 4xn array to mimic the outputs of a normal LT run 
 var lt_output = ftv_prep.convertLTfitToLTprem(lt_fit_output,export_band,startYear,endYear); 
 
-var years = lt_output.select('LandTrendr').arraySlice(0, 0, 1).arrayProject([1]);
-var mask = lt_output.select('LandTrendr').arraySlice(0, 3).arrayProject([1]);
-
-var example = years.arrayMask(mask); 
-Map.addLayer(example,{},'example')
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 //now we want to calculate the time since the last vertex and the length of a segment
 //first we make an array image that has the year of the segment that year belongs to
@@ -158,39 +159,38 @@ function fillSegmentYear(ltResult, startYear, endYear, fillYears) {
 var bandNames = ee.List.sequence(startYear,endYear); 
 bandNames = bandNames.map(function(bn){
   //create a band name that doesn't start with a number
-  return ee.String('yr_').cat(ee.Number(bn).toInt().format())
+  return ee.String('yr_').cat(ee.Number(bn).toInt().format()); 
 }); 
 
 //passing 'fill' or another string to the fillSegmentYear function will output segment lengths
 //passing an empty list will yield the year of the closest segment 
-var segmentLength = fillSegmentYear(lt_output, 1990, 2021,'fill'); 
+var segmentLength = fillSegmentYear(lt_output, 1990, 2021,vertex_output); 
 Map.addLayer(segmentLength,{},'segment length'); 
 
 Export.image.toAsset({
   image:segmentLength.arrayFlatten([bandNames]).toInt16(), 
-  description:'LTOP_annual_segment_length_Cambodia', 
-  assetId:'reem_cf_outputs/LTOP_annual_segment_length_Cambodia', 
+  description:'LTOP_annual_segment_length_'+place, 
+  assetId:asset_folder+'/LTOP_annual_segment_length_Cambodia', 
   region:aoi, 
   scale:30, 
   maxPixels:1e13
   
-})
+}); 
 //////////////////////////////////////////////////////////////////////////////////////
 //now we want to calculate the time since the last vertex - this is currently set as more of a time to 
 //this could be changed but we'd need to change so that the value is based on the segment start instead of segment end 
-var timeTo = years.subtract(fillSegmentYear(lt_output, 1990, 2021,[])); 
-Map.addLayer(timeTo,{},'time since')
+var timeSince = years.subtract(fillSegmentYear(lt_output, 1990, 2021,[])); 
+Map.addLayer(timeSince,{},'time since');
 
-var timeToImg = timeTo.arrayFlatten([bandNames])
-timeToImg = timeToImg.toInt16()
-// print(timeToImg,'time to imaage')
-// Map.addLayer(timeToImg.select('2010'),{},'time to image')
+var timeSinceImg = timeSince.arrayFlatten([bandNames]);
+timeSinceImg = timeSinceImg.toInt16();
+
 Export.image.toAsset({
-  image:timeToImg, 
-  description:'LTOP_annual_time_since_vertex_Cambodia', 
-  assetId:'reem_cf_outputs/LTOP_annual_time_since_vertex_Cambodia', 
+  image:timeSinceImg, 
+  description:'LTOP_annual_time_since_vertex_'+export_band+'_'+place, 
+  assetId:asset_folder+'/LTOP_annual_time_since_vertex_'+export_band+'_'+place, 
   region:aoi, 
   scale:30, 
   maxPixels:1e13
   
-})
+}); 

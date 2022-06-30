@@ -1,30 +1,51 @@
-// #####################################################################################################
-// ########################    Take LT optimization outputs and make pct tree cover maps ###############
-// #####################################################################################################
+//######################################################################################################## 
+//#                                                                                                    #\\
+//#                              Create yearly canopy cover maps using RMA                             #\\
+//#                                                                                                    #\\
+//########################################################################################################
 
-//first get some user inputs and imports
+// date: 2022-6-30
+// author: Ben Roberts-Pierel | robertsb@oregonstate.edu
+//         Peter Clary        | clarype@oregonstate.edu
+//         Robert Kennedy     | rkennedy@coas.oregonstate.edu    
+// website: https://github.com/eMapR/LT-GEE
 
-// var num_pts = 2000; 
-//note that the label is just dictated by the reducer below, this could be changed 
+//This script uses an existing canopy cover product (Hansen or GFCC) and predictors from temporally stabilized 
+//imagery from the LandTrendr algorithm. The approach currently relies on reduced major axis (RMA) regression for the modeling approach.
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////User inputs//////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+//first get some user inputs and imports. A few notes: 
+// 1. label is based on the reducer that is being used for training data creation below. This could be changed
+// 2. yr_XXXX is from the structure of the temporally fitted data (ftv or fit) and should align with the year of forest cover from GFCC or Hansen
+// 3. canopy_band is dictated by the target dataset (GFCC or Hansen)
+// 4. Map palette just creates a green palette for visualizing the outputs 
+// 5. nbr etc comes from the fitted imagery. RMA is just set up as a bivariate thing but may be expanded in the future
+
 var label = 'first'; 
-//from the imported images
-var bands = ['ndvi','nbr']; 
-var yr_band = 'yr_2000'
+// var bands = ['ndvi','nbr']; //this was originally set up as a bivariate thing, could be changed in the future
+var yr_band = 'yr_2000'; 
 var startYear = 1990; 
 var endYear = 2021; 
-var canopy_band = 'treecover2000'
+var canopy_band = 'treecover2000'; 
+var place = 'Cambodia'; 
 var map_palette = {min: 0, max: 100, palette: ['ffffff', '004000']};
-//note that this did not export the whole area 
-var lt_like_outputs = ee.Image('users/ak_glaciers/NBR_fit_LandTrendr_like_output_flipped_Cambodia_servir_comps')
-Map.addLayer(lt_like_outputs,{},'lt outputs')
+//LTOP fitted outputs
+// var ndvi = ee.Image('users/ak_glaciers/NDVI_fitted_image_stack_from_LTOP_1990_start'); 
+var nbr = ee.Image('users/ak_glaciers/NBR_fitted_image_stack_from_LTOP_1990_start'); 
+//following two args are optional and were from the original development of this script 
+var cambodiaCFs = ee.FeatureCollection('users/ak_glaciers/All_CF_Cambodia_July_2016'); 
+var stats_aoi_name = 'Torb Cheang'; 
+Map.addLayer(nbr.select('yr_2000'),{},'nbr');
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////Get inputs//////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////Get additional inputs/////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA','Cambodia')).geometry();//.buffer(5000);
+var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA',place)).geometry();//.buffer(5000);
 
-//Deprecated?
+//Use for GFCC
 //get the train data into a usable format because its weirdly formatted
 // var forest_cover = ee.ImageCollection("NASA/MEASURES/GFCC/TC/v3").filterBounds(aoi)
 //                                                                 .filter(ee.Filter.eq('year',2015))
@@ -33,19 +54,13 @@ var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_N
 
 // forest_cover = forest_cover.select('tree_canopy_cover').mosaic(); 
 
-//try using Hansen to see what difference that makes
+//try for Hansen instead of GFCC
 var forest_cover = ee.Image("UMD/hansen/global_forest_change_2020_v1_8").select('treecover2000'); 
-Map.addLayer(forest_cover,map_palette,'forest cover')
-// Define a boxcar or low-pass kernel.
-// var boxcar = ee.Kernel.square({
-//   radius: 7, units: 'pixels', normalize: true
-// });
-// forest_cover = forest_cover.convolve(boxcar).toInt(); 
+Map.addLayer(forest_cover,map_palette,'hansen forest cover')
 
-//LTOP fitted outputs
-// var ndvi = ee.Image('users/ak_glaciers/NDVI_fitted_image_stack_from_LTOP_1990_start'); 
-var nbr = ee.Image('users/ak_glaciers/NBR_fitted_image_stack_from_LTOP_1990_start');  
-Map.addLayer(nbr.select('yr_2000'),{},'nbr')
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////Prep data for training/////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
 //when we apply the model to the timeseries it expects the same band names as the training data so change these to be generic
 var band_names = nbr.bandNames(); 
 // var ndvi_train = ndvi.select([yr_band],['ndvi']);
@@ -61,23 +76,11 @@ Map.addLayer(nbr.select('yr_2000'),img_palette,'input image');
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////Create the training data and train a model/////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
-//create some random points 
-// var train_pts = ee.FeatureCollection.randomPoints({
-//   region: aoi, 
-//   points:num_pts, 
-//   seed: 10
-// }); 
-
-//instead of creating random points try creating stratified random points
-// var train_pts
-// var thresholds = ee.Image([20, 40, 60, 80, 100]);
-// var zones = forest_cover.lt(thresholds).reduce('sum');
-// Map.addLayer(zones, {min: 0, max: 100}, 'zones');
+//this wasn't working well with every % cover treated as a class so try aggregating the data to reduce dimensionality
 var forest_cover_reclass = forest_cover.divide(20).ceil().toInt();
-// Map.addLayer(forest_cover_reclass,{},'forest cover reclass')
 
 var train_pts = forest_cover_reclass.stratifiedSample({
-  numPoints:400, 
+  numPoints:400, //this is hardcoded and could be changed
   classBand:canopy_band, 
   scale:30, 
   projection:'EPSG:4326',
@@ -86,15 +89,12 @@ var train_pts = forest_cover_reclass.stratifiedSample({
   
 }); 
 
-print(train_pts)
-Map.addLayer(train_pts,{},'train pts')
-
 //i think because there are so many pixels with a value of zero we're still oversampling this. 
 //i guess we should just force that number down? We can do this with the random column we're creating for the 
 //validation/train split 
 //allocate some pts to train and some to validation
 train_pts = train_pts.randomColumn();
-//before we split, supress the 0 points
+//before we split, supress the 0 points - this probably needs to be amended
 var zeros = ee.FeatureCollection(train_pts.filter(ee.Filter.eq(canopy_band,0))
                                           .sort('random')
                                           .toList(400)
@@ -125,10 +125,11 @@ var training = sample_img.select('nbr').sampleRegions({
   scale: 30, 
   // geometries:true //this only needs to be set to true if you want to export these 
 });
-Map.addLayer(training,{},'training data')
-print(training,'training')
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////Visualize the training data distributions /////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
 //plot the training data
-// Define the chart and print it to the console.
 var chart =
     ui.Chart.feature
         .byFeature({
@@ -151,22 +152,23 @@ var chart =
         });
 print(chart);
 
-// /////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ///////////////////////////////////////////Try the RMA model ////////////////////////////////////////////
-// /////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////Try the RMA model ////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
 //from the RMA paper (cohen et al)
 
-//try with just canopy cover and NBR because this is a bivariate relationship 
+//try with just canopy cover and NBR 
 //define a function that makes the rma canopy cover callable 
 //note that calc_img is whatever image you're using to fit the reg equation and fit img is whatever 
 //you want to use to apply the coefficients 
 var rmaCanopyCover = function(training,x_band,y_band,fit_img){
   
-  var Xstd = ee.Number(training.aggregate_stats(x_band).get('total_sd'));
+  var Xstd = ee.Number(training.aggregate_stats(x_band).get('total_sd')); //get population SD
   var Ystd = ee.Number(training.aggregate_stats(y_band).get('total_sd'));
   var Xmean = ee.Number(training.aggregate_stats(x_band).get('mean'));
   var Ymean = ee.Number(training.aggregate_stats(y_band).get('mean'));
-  //now calculate b0 and b1 according to the RMA instructions 
+  
+  //now calculate b0 and b1 according to the RMA formula 
   var slope = Ystd.divide(Xstd); 
   var Yint = Ymean.subtract(slope.multiply(Xmean)); 
   var regImage = fit_img.select(y_band); 
@@ -177,7 +179,7 @@ var rmaCanopyCover = function(training,x_band,y_band,fit_img){
   //first find the areas that need to be changed
   var mask = output.gte(0).and(output.lte(100)); 
   var masked = output.updateMask(mask); 
-  //this updates the values at those locations with a constant value 
+  //this updates the values at those locations with a constant value - not sure if this is the best way to handle this
   fittedImg = masked.unmask(ee.Image(100).updateMask(output.gt(100)))
                     .unmask(ee.Image(0).updateMask(output.lt(0))); 
   return output; 
@@ -218,6 +220,7 @@ print(multibandImg,'multi band img')
 // Map.addLayer(canopy_ts.filter(ee.Filter.eq('year','2000')),map_palette,'2000')
 // Map.addLayer(canopy_ts.filter(ee.Filter.eq('year','2015')),map_palette,'2020')
 
+//export the time series of annual canopy cover as a multiband image
 // Export.image.toAsset({
 //   image:multibandImg, 
 //   description:'reem_canopy_cover_2000_pts_rma_nbr_timeseries_remapped_full', 
@@ -226,7 +229,6 @@ print(multibandImg,'multi band img')
 //   maxPixels:1e13,
 //   region:aoi
 // }); 
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////Now make delta images from the canopy cover stack ///////////////////////////
@@ -242,10 +244,11 @@ var shiftedCanopyCover = backwardsDifference(multibandImg.toArray());
 print(shiftedCanopyCover)
 Map.addLayer(shiftedCanopyCover,{},'deltas arr')
 Map.addLayer(multibandImg.toArray(),{},'multiband img arr')
-// //in case you want to go back to a multiband image
+//in case you want to go back to a multiband image
 var shiftedCanopyCoverImg = shiftedCanopyCover.arrayFlatten([nbr.bandNames().slice(1)])
 print(shiftedCanopyCoverImg)
-// Map.addLayer(shiftedNDVIimg,{},'ndvi image')
+
+//export the deltas
 // Export.image.toAsset({
 //   image:shiftedCanopyCoverImg, 
 //   description:'reem_canopy_cover_deltas_full', 
@@ -258,63 +261,29 @@ print(shiftedCanopyCoverImg)
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////Apply reducers to get zonal stats for CFs ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
-var cambodiaCFs = ee.FeatureCollection('users/ak_glaciers/All_CF_Cambodia_July_2016'); 
-Map.addLayer(cambodiaCFs,{},'cambodia cfs')
-print(cambodiaCFs, 'all cfs')
-var example_cf = cambodiaCFs.filter(ee.Filter.eq('CF_Name_En','Torb Cheang')); 
-Map.addLayer(example_cf,{},'example cf')
-print(example_cf, 'example cf')
-//make some figure outputs 
-//Long-Term Time Series
-var example = ui.Chart.image.seriesByRegion({
-  imageCollection:canopy_ts,
-  regions: example_cf.geometry(), 
-  reducer: ee.Reducer.mean(),
-  scale:30, 
-  xProperty:'year'
-  
-}).setOptions({
-title: 'RMA NBR-based Canopy Cover',
-vAxis: {title: '% canopy cover'},
-});
-print(example);
 
-var cf_list = cambodiaCFs.aggregate_array('CF_Name_En'); 
+// var example_cf = cambodiaCFs.filter(ee.Filter.eq('CF_Name_En','Torb Cheang')); 
+
+// //make some figure outputs 
+// //Long-Term Time Series
+// var example = ui.Chart.image.seriesByRegion({
+//   imageCollection:canopy_ts,
+//   regions: example_cf.geometry(), 
+//   reducer: ee.Reducer.mean(),
+//   scale:30, 
+//   xProperty:'year'
+  
+// }).setOptions({
+// title: 'RMA NBR-based Canopy Cover',
+// vAxis: {title: '% canopy cover'},
+// });
+// print(example);
+
+// var cf_list = cambodiaCFs.aggregate_array('CF_Name_En'); 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////Add in the disturbance detection stuff //////////////////////////////////////
+////////////////////////////Disturbance detection ///////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 var multibandMask = shiftedCanopyCoverImg.lte(-15); 
 var maskedDeltas = shiftedCanopyCoverImg.updateMask(multibandMask); 
 Map.addLayer(maskedDeltas,{},'masked deltas'); 
-
-
-
-
-
-
-////////////////////////////////////////////////////////////////////////////////////////////
-//deprecated 
-//try truncation
-  // var mask = fittedImg.gte(0).and(fittedImg.lte(100)); 
-  // fittedImg = fittedImg.updateMask(mask); 
-  
-  //instead of truncating maybe try rescaling instead 
-  //calculate the min and max value of an image
-  // var minMax = yr_classified.reduceRegion({
-  //   reducer: ee.Reducer.minMax(),
-  //   geometry: yr_classified.geometry(),
-  //   scale: 30,
-  //   maxPixels: 1e13,
-  //   // tileScale: 16
-  // }); 
-  // // use unit scale to normalize the pixel values
-  
-  // yr_classified = yr_classified.unitScale(ee.Number(minMax
-  //               .get(ee.String('nbr').cat('_min'))), ee.Number(minMax
-  //               .get(ee.String('nbr').cat('_max'))))
-           
-  //                 .multiply(100);
-  
-  
-Map.addLayer(forest_cover.clip(aoi),map_palette,'clipped')
