@@ -1,25 +1,19 @@
-#### The following steps are optional and subject to change 
+#### Methods for change detection from optimized LandTrendr (LT) outputs
+The following descriptions are for three methods for calculating or identifying pixels that experienced some kind of change over the course of the image time series. It is important to note that the methods described here are aimed at change detection not change attribution. That is to say that they highlight pixels that experienced some kind of change based on different rules or trend-based criteria (described below) but they do not identify pixels that moved from forest to pasture. Additional methods employing land use/land cover classifications and similar approaches are suggested for doing these kinds of change attribution studies. 
 
-#### 23 Use the LTOP breakpoints/vertices outputs to create fitted Landtrendr like outputs. This uses vertices from the LTOP process and the LT-fit algorithm. This step may become optional if the same images are used for the LTOP process and change detection. 
+The following methods are included in this description: 
 
-	1) script location
-		./path/to/local_directory/LTOP_FTV/scripts/GEEjs/06lt_TransferFTV.js
+1. Standard identification of singular events based on existing LT modules and LTOP outputs 
+2. Vertex-based information for temporal understanding of change 
+3. Annual canopy cover mapping and delta tracking 
 
-	2) Edit and review user inputs. There are quite a few and they are described in detail at the top of the script. 
+#### Identifying change based on existing LT modules 
 
-	3) run script
+#### Vertex-based change
 
-	4) Run task to export a fitted array image to an asset. 
+#### Annual canopy cover mapping  
 
-#### 24 Use the FTV outputs to create change detection maps using existing change map modules from the public LandTrendr.js scripts. This either takes the outputs of 28 above or the LTOP outputs need to be amended to create these images that mimic the regular LT outputs. 
 
-	1) script location: 
-		"/vol/v1/proj/path/to/local_directory/LTOP_FTV/scripts/GEEjs/07_Optimized_change_detection.js"
 
-	2) Edit and review the user inputs. These are outlined at the beginning of the script. 
 
-	3) check that the outputs are correctly specified
 
-	4) run script 
-
-	5) run task to export a change detection map
