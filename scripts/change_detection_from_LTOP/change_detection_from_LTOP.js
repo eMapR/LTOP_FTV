@@ -1,28 +1,22 @@
+var geometry = 
+    /* color: #d63000 */
+    /* displayProperties: [
+      {
+        "type": "rectangle"
+      }
+    ] */
+    ee.Geometry.Polygon(
+        [[[104.05223485948095, 14.010262376815325],
+          [104.05223485948095, 12.791948747380491],
+          [106.73289892198095, 12.791948747380491],
+          [106.73289892198095, 14.010262376815325]]], null, false);
+
 //######################################################################################################## 
 //#                                                                                                    #\\
 //#                      LANDTRENDR CHANGE DETECTION USING OPTIMIZATION OUTPUTS                        #\\
 //#                                                                                                    #\\
 //########################################################################################################
 
-// date: 2022-02-18
-// author: Ben Roberts-Pierel | robertsb@oregonstate.edu
-//         Peter Clary        | clarype@oregonstate.edu
-//         Robert Kennedy     | rkennedy@coas.oregonstate.edu
-// website: https://github.com/eMapR/LT-GEE
-
-
-// Notes on inputs:
-// 1. The LT-like output that is the result of the 06lt_TransferFTV.js script
-// 2. LandTrendr.js modules, this is where we get the change detection code from for making maps 
-// 3. Start year, this should be the first year in your image stack 
-// 4. End year, this should be the final year of your image stack 
-// 5. Change detection paramaters- see https://emapr.github.io/LT-GEE/ui-applications.html#ui-landtrendr-change-mapper and 
-//    https://emapr.github.io/LT-GEE/api.html#getchangemap for more information 
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-//get the data inputs 
 // date: 2022-02-03
 // author: Ben Roberts-Pierel | robertsb@oregonstate.edu
 //         Peter Clary        | clarype@oregonstate.edu
@@ -44,12 +38,12 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //import modules
 var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
-var ftv_prep = require('users/emaprlab/broberts:LTOP_mekong/06lt_Transfer_FTV_modules.js'); 
+var ftv_prep = require('users/emaprlab/broberts:LTOP_gee_revised/FTV_post_processing_modules');
 
 //USER DEFINED INPUTS/PARAMS
 var startYear = 1990; 
 var endYear = 2021; 
-var place = 'Cambodia'; 
+var place = 'test_geometry'; 
 var min_obvs = 11;  
 var startDay = '11-20'; 
 var endDay =   '03-10';
@@ -71,13 +65,14 @@ var changeParams = {
 
 
 //inputs and user specified args (NOTE: change the geometry we're clipping to, currently just set up as a test)
-var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA',place)).geometry().buffer(5000);
+// var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA',place)).geometry().buffer(5000);
+var aoi = geometry; 
 //kmeans cluster image
-var cluster_image = ee.Image("users/ak_glaciers/ltop_snic_seed_points75k_kmeans_cambodia_c2_1990"); 
+var cluster_image = ee.Image("users/ak_glaciers/servir_training_tests/LTOP_kmeans_cluster_image_test_geometry_c2_full_area_50_per_tiled_1990"); 
 //selected LT params
-var table = ee.FeatureCollection("users/ak_glaciers/LTOP_Cambodia_config_selected_220_kmeans_pts_new_weights");
+var table = ee.FeatureCollection("users/ak_glaciers/servir_training_tests/LTOP_test_geometry_kmeans_pts_config_selected_for_GEE_upload_new_weights_gee_implementation");
 //vertices image from LTOP
-var lt_vert = ee.Image("users/ak_glaciers/Optimized_LT_1990_start_Cambodia_remapped_cluster_ids").clip(aoi);
+var lt_vert = ee.Image("users/ak_glaciers/servir_training_tests/Optimized_LT_1990_start_test_geometry_remapped_cluster_ids").clip(aoi);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -197,8 +192,8 @@ var exportIndex = index;
 
 Export.image.toAsset({
   image: changeImg, 
-  description:index+'_change_detection_img_'+index, 
-  assetId:asset_folder+'/LTOP_'+index+'_change_detection_img_'+index, 
+  description:'LT_getChangeMapper_from_LTOP_'+index, 
+  assetId:asset_folder+'/LT_getChangeMapper_from_LTOP_'+index, 
   region:aoi, 
   scale:30, 
   maxPixels:1e13

@@ -1,3 +1,16 @@
+var geometry = 
+    /* color: #d63000 */
+    /* displayProperties: [
+      {
+        "type": "rectangle"
+      }
+    ] */
+    ee.Geometry.Polygon(
+        [[[104.05223485948095, 14.010262376815325],
+          [104.05223485948095, 12.791948747380491],
+          [106.73289892198095, 12.791948747380491],
+          [106.73289892198095, 14.010262376815325]]], null, false);
+
 //######################################################################################################## 
 //#                                                                                                    #\\
 //#                              Create yearly canopy cover maps using RMA                             #\\
@@ -29,7 +42,7 @@ var yr_band = 'yr_2000';
 var startYear = 1990; 
 var endYear = 2021; 
 var canopy_band = 'treecover2000'; 
-var place = 'Cambodia'; 
+var place = 'test_geometry'; 
 var map_palette = {min: 0, max: 100, palette: ['ffffff', '004000']};
 //LTOP fitted outputs
 // var ndvi = ee.Image('users/ak_glaciers/NDVI_fitted_image_stack_from_LTOP_1990_start'); 
@@ -43,8 +56,8 @@ Map.addLayer(nbr.select('yr_2000'),{},'nbr');
 /////////////////////////////////////////Get additional inputs/////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA',place)).geometry();//.buffer(5000);
-
+// var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA',place)).geometry();//.buffer(5000);
+var aoi = geometry;
 //Use for GFCC
 //get the train data into a usable format because its weirdly formatted
 // var forest_cover = ee.ImageCollection("NASA/MEASURES/GFCC/TC/v3").filterBounds(aoi)
