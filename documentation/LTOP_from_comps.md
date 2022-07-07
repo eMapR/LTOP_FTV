@@ -8,11 +8,7 @@ Traditionally, LandTrendr is run over an image collection with a single LandTren
 
 ### LTOP Work Flow (Step by Step) 
 
-[GEE link](https://code.earthengine.google.com/https://code.earthengine.google.com/?accept_repo=users/emaprlab/SERVIR) open with Emapr Account for dependencies 
-
-![img](https://lh4.googleusercontent.com/qpYv4_Q9InR0_LBzk1vdtIWhfLmMRNwZ840DSv6h0CzETzPjd2n6pgQP24eiHFQLfTKp3Tr17yLoqwdRfPeNb_YyktC60kTGnQulL7UwiLoQit-OyJJ3H_vI25-GE06J20ab_YeO=s0)
-
-NOTE: The below work flow is for southeast Asia. File paths refer to locations on GitHub.  
+![img](https://docs.google.com/drawings/d/e/2PACX-1vQP5LazHZnAEdf1dAFrcfhTlrIJOq8jSparCpzZJUGPoUWK6xzzi8NYdIDnOhoVEtBgYdO_J30iY4S5/pub?w=960&h=720)
 
 #### NOTES on preparing to run the LTOP workflow
 
