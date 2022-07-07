@@ -1,8 +1,8 @@
 #ignore some files
-.scripts/validation_by_classification/
-.scripts/revised_weighting/
-.scripts/collection_2_conversion/
-.scripts/kMeanClustering/
+..scripts/validation_by_classification/
+..scripts/revised_weighting/
+..scripts/collection_2_conversion/
+..scripts/kMeanClustering/
 #/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/lt_seletor/01_ltop_lt_paramater_scoring_new_version.py
 #/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/lt_seletor/01_ltop_lt_paramater_scoring_reweighted.py
 #/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/lt_seletor/01_ltop_lt_parameter_scoring.py
