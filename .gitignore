@@ -1,12 +1,14 @@
-#ignore some files
+#ignore some directories 
 **/validation_by_classification/
 **/revised_weighting/
 **/collection_2_conversion/
 **/kMeanClustering/
-#/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/lt_seletor/01_ltop_lt_paramater_scoring_new_version.py
-#/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/lt_seletor/01_ltop_lt_paramater_scoring_reweighted.py
-#/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/lt_seletor/01_ltop_lt_parameter_scoring.py
-#vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/abstractImageSampling/csv_to_abstract_images.py
-#/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/abstractImageSampling/landtrendrParametersListGenerator.py
-#/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/abstractImageSampling/LT_parameter_varations_list_dic_144.txt
-#/vol/v1/proj/LTOP_mekong/LTOP_FTV/scripts/GEEjs/trash/ 
+**/trash/ 
+
+#ignore some files that we don't necessarily want to delete but don't need to show up in GitHub
+01_ltop_lt_paramater_scoring_new_version.py
+01_ltop_lt_paramater_scoring_reweighted.py
+01_ltop_lt_parameter_scoring.py
+csv_to_abstract_images.py
+landtrendrParametersListGenerator.py
+LT_parameter_varations_list_dic_144.txt
