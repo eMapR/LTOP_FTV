@@ -10,6 +10,7 @@ import math
 import sys
 from multiprocessing import Pool
 
+
 """
 **************************************
 * arr_to_col
@@ -38,7 +39,7 @@ def arr_to_col(df,start,end):
 *
 ***************************************
 """
-def dfprep(df,start,end):
+def dfprep(df,startYear,endYear):
 
 	# drops uneeded columns 
 	df.drop(columns=['system:index'])
@@ -48,10 +49,10 @@ def dfprep(df,start,end):
 
 	# make vert list from start and end year
 	vertyearlist = []
-	for year in range(start,end+1):
+	for year in range(startYear,endYear+1):
 		vertyearlist.append("vert"+str(year)[-2:])
 
-	# adds vertice year columns
+	# adds vertices year columns
 	df[vertyearlist]=0
 
 	# adds a column for normalized rmse
@@ -66,11 +67,11 @@ def dfprep(df,start,end):
 	# sort dataframe by values for columns
 	dfsorted = df.sort_values(by=['cluster_id','params'],ignore_index=True)
 
-	# add a index id for the sort dataframe 
+	# add an index id for the sort dataframe 
 	dfsorted['index_cid'] = dfsorted.index+1 
 
 	# makes a list of number for the range of landtrendr parameters used  <<<<<<<<<<<<<<<<<<<<< Not sure if this needs to automated 
-	listvalues = list(range(1,144+1))
+	listvalues = list(range(1,144+1)) #add what 144 is 
 		
 	# make a list of of repeating param values for each configuration
 	ser = listvalues * int(len(dfsorted)/len(listvalues))
@@ -89,7 +90,6 @@ def dfprep(df,start,end):
 ***************************************
 """
 # wrap your csv importer in a function that can be mapped
-#def read_csv(filename,start,end):
 def read_csv(filename):
 	#'converts a filename to a pandas dataframe'
 
@@ -99,7 +99,7 @@ def read_csv(filename):
 	# this works for windows
 	dftmp = pd.read_csv(filename)#.sample(5000)
 
-	start = 1990
+	start = 1990 #this would need to be changed for this to easily be mapped or it needs to be changed in the map statement 
 	end = 2021
 
 	dftmp2 = dfprep(dftmp,start,end)
@@ -113,29 +113,21 @@ def read_csv(filename):
 *
 ***************************************
 """
-#def read_in_CSVs(start,end):
-def read_in_CSVs():
+def read_in_CSVs(csv_dir,njobs):
 
 	# get a list of file names
-	#files = glob.glob('/media/peter/vol1/v1/ltop_test_local/abstract_image/abstact_sample/SERVIR_abstractImageSamples_5001pts_v1/*.csv')
-	files = glob.glob("/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/guatemala/*.csv")
-	# files = glob.glob('./SERVIR_abstractImageSamples_5001pts_v1/*.csv')
-	print(files)
-	#file_list = [filename for filename in files if filename.split('.')[1]=='csv']
-	#print(file_list)
-
+	if csv_dir.endswith('/'): 
+		files = glob.glob(csv_dir+"*.csv")
+	else: 
+		files = glob.glob(csv_dir+'/'+"*.csv")	
+	
+	print('The files we are going to process are', files)
+	
 	# set up your pool
-	with Pool(processes=8) as pool: # or whatever your hardware can support
+	with Pool(processes=njobs) as pool: # or whatever your hardware can support
 	# have your pool map the file names to dataframes
 	    df_list = pool.map(read_csv, files)
 	
-	#option for low memory systems
-	#df_list =[]
-	
-	#for shp in file_list:
-	#for shp in files:
-	#	df_list.append(read_csv(shp,start,end)) 
-
 	return df_list
 
 
@@ -168,18 +160,15 @@ def midpoint(lis):
 *
 ***************************************
 """
-#def summed_across_vertices(df_numOfPoints,startYear,endYear):
-def summed_across_vertices(df_numOfPoints):
-	startYear = 1990 
-	endYear = 2021
-
+def summed_across_vertices(df_numOfPoints, startYear, endYear):
+	#this is doing some kind of complicated data cleaning 
 	# remove any row with no data
 	dftmp = df_numOfPoints.dropna()
 
 	# makes a list  [1990,1991 ...,2019 , 2020] a template of all the years in the time series.
 	goodYear = list(range(startYear,endYear+1))
 
-	# empty List for temporary placment of a single points sumed vert array ?
+	# empty List for temporary placment of a single points summed vert array ?
 	vertStrings = []
 		
 	dftmp["vert"] = dftmp["vert"].str[1:-1].apply(ast.literal_eval)
@@ -187,16 +176,19 @@ def summed_across_vertices(df_numOfPoints):
 	dftmp["fitted"] = dftmp["fitted"].str[1:-1].apply(ast.literal_eval)
 	dftmp["orig"] = dftmp["orig"].str[1:-1].apply(ast.literal_eval)
 	
+
 	
-	# make column for the len of lt data arrays. check each to make sure that 
+	
+	
+	# make column for the len of lt data arrays. 
 
 	
 	for index, row in dftmp.iterrows():
-
-		# # extracts a single list for the list of list  
-		# print(row['vert'])
+		print('now we are working on that for loop with iterrows')
+		# extracts a single list for the list of list  
+		print(row['vert'])
 		objVert = row['vert'] #[int(i) for i in json.loads(vert)[0]]  # example output [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1]
-		# print(row['year'])
+		print(row['year'])
 		objYear = row['year'] # example output [1990, 1991, 1992, 1993, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2$
 
 		# objFit = eval(row['fitted'])[0] # example output [1990, 1991, 1992, 1993, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2$
@@ -207,7 +199,7 @@ def summed_across_vertices(df_numOfPoints):
 		yearCheck = [ele for ele in range(startYear, endYear+1) if ele not in objYear]
 
 
-		# check for missing elements in lists and add 0 if element is missing
+		# # # check for missing elements in lists and add 0 if element is missing
 		for place in yearCheck:
 
 			mis = goodYear.index(place)
@@ -219,8 +211,8 @@ def summed_across_vertices(df_numOfPoints):
 		# # add value to miss fitted and orig midpoint calc
 		# objFit = midpoint(objFit)		
 		# objOrig = midpoint(objOrig)
-		# print(objVert)
-		# print(objYear)
+		print(objVert)
+		print(objYear)
 		# #vertStrings.append(objVert)
 		dftmp.at[index, 'vert'] = objVert
 		dftmp.at[index, 'year'] = objYear
@@ -262,16 +254,12 @@ def summed_across_vertices(df_numOfPoints):
 ***************************************
 """
 #def pool_summed_vert(df_list_cluster_id,start,end):
-def pool_summed_vert(df_list_cluster_id):
-
-	start = 1990
-	end = 2021
+def pool_summed_vert(df_list_cluster_id,startYear,endYear,njobs):
 
 	# set up pool works on linux
-	with Pool(processes=8) as pool: # or whatever your hardware can support
+	with Pool(processes=njobs) as pool: # or whatever your hardware can support
 	# have your pool map the file names to dataframes
 		df_list = pool.map(summed_across_vertices, df_list_cluster_id)
-	
 	
 	# works on windows 
 	#df_list=[]
@@ -300,9 +288,8 @@ def get_max_rmse(df, index):
 	# RMSE is actually a string with brackets '[75.3434343]'  
 	# So we have to extract it, float it, and then list it before we can max it. 
 
-	max_rmse = np.max(ind['rmse'])   # we have to parse out the RMSE because it's a stri
+	max_rmse = np.max(ind['rmse'])   # we have to parse out the RMSE because it's a string
 	return {'index': index, 'RMSE_max': max_rmse*1.001}
-
 
 
 """
@@ -314,9 +301,12 @@ def get_max_rmse(df, index):
 ***************************************
 """
 
-def ClusterPointCalc(dframe, clusterPoint_id):
+def ClusterPointCalc(dframe, clusterPoint_id,aicWeight,vScoreWeight):
 
 	#print(clusterPoint_id)
+
+	#aicWeight = 0.296
+	#vScoreWeight = 0.886
 
 	these = dframe[dframe['cluster_id']==clusterPoint_id]
 
@@ -324,9 +314,8 @@ def ClusterPointCalc(dframe, clusterPoint_id):
 
 	these['rankAICc'] = these['AICc'].rank(method='max', ascending=False)
 
-	# these['combined'] = (these['rankAICc']/1.5)+these['rankVscore']
-	#changed weights - these may change once more and are hardcoded for an area 3/8/2022 BRP
-	these['combined'] = (these['rankAICc']*0.296)+(these['rankVscore']*0.886)
+	#this is where the weights that were determined from interpreters get applied 
+	these['combined'] = (these['rankAICc']*aicWeight)+(these['rankVscore']*vScoreWeight)
 
 	these['selected'] = ((these['combined'] == np.max(these['combined']))*100)+1
 
@@ -432,32 +421,23 @@ def addValuesToNewColumns(index, row, df):
 ***************************************
 """
 
-def main():
+def main(startYear,endYear,csv_dir,njobs,output_file):
 
 	startYear = 1990
 	endYear = 2021
-	#number_of_clusters = 5000
-
-	# print(1)
-	# read in csv files                                                                                  
-	#df_lis = read_in_CSVs(startYear,endYear)
-	df_lis = read_in_CSVs()
-	# print(2)
+	
+	df_lis = read_in_CSVs(csv_dir,njobs)
 	print(df_lis)
+	
 	# corrects breakpoint and year arrays by fill missing elements with a correct value. 
-	#df = pool_summed_vert(df_lis,startYear,endYear)
-	df = pool_summed_vert(df_lis)
-	# print(3)
+	df = pool_summed_vert(df_lis,startYear,endYear,njobs)
 
 	# NEW gets the nuber of unique cluster ids
 	# number_of_clusters = len(df.cluster_id.unique())
 	unique_clusters = sorted(df.cluster_id.unique())
-	# print(number_of_clusters)
-	#sys.exit()
+	
 	# change the breakpoint array to columns in dataframe
 	#arr_to_col(df,startYear,endYear)
-
-	# print(4)
 
 	#find the unique indices
 	indices = set(df['index'])
@@ -471,8 +451,6 @@ def main():
 
 		max_rmse_dict[ind] = get_max_rmse(df,ind)['RMSE_max']
 
-
-	# print(5)
 	# go through the full dataframe and make a list with the
 	# max rmse attached to each item. 
 
@@ -490,9 +468,6 @@ def main():
 
 	# show it. 
 	#df[['NRMSE', 'RMSE', 'rmse_num', 'max_rmse']] #, 'rmse_num', 'max_rmse']
-
-	print(df.head(1)['year'])
-
 
 	# score vertex matches.  THIS IS THE MAIN EVENT! 
 
@@ -574,7 +549,7 @@ def main():
 			point_ind_matrix = scaled_count[(ind==this_ind)&(point==this_point),:]
 			sums_by_point_ind_vector= point_ind_matrix.sum(axis=0)
 
-			#v2 -- scale by possilbe number of times it could be picked
+			#v2 -- scale by possible number of times it could be picked
 			n_runs_ind = point_ind_matrix.shape[0]
 			scaled_sums_by_point_ind_vector = sums_by_point_ind_vector / n_runs_ind
 
@@ -606,9 +581,9 @@ def main():
 	for i in unique_clusters:#list(range(number_of_clusters)):
 		c = c + 1
 		if c == 1 :
-			newDFpart = ClusterPointCalc(df,i)
+			newDFpart = ClusterPointCalc(df,i,aicWeight,vScoreWeight)
 		else:
-			newDFpart2 = ClusterPointCalc(df,i)
+			newDFpart2 = ClusterPointCalc(df,i,aicWeight,vScoreWeight)
 			dfList.append(newDFpart2)
 
 	result = newDFpart.append(dfList)
@@ -620,9 +595,7 @@ def main():
 		addValuesToNewColumns(index, row,df)
 
 
-	outfile = "/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/selected_param_config_gee_implementation/short_script_testing.csv"
-
-	df.to_csv(outfile, index=False)
+	df.to_csv(output_file, index=False)
 
 
 #######################################################################################################################################################
@@ -630,8 +603,16 @@ def main():
 #######################################################################################################################################################
 #######################################################################################################################################################
 if __name__ == '__main__':
-	main()
+	
 
+	### new user args ###
+	input_dir = "/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/guatemala/"
+	startYear = 1990 
+	endYear = 2021
+	outfile = "/vol/v1/proj/LTOP_mekong/csvs/02_param_selection/selected_param_config_gee_implementation/short_script_test.csv"
+	njobs = 8
+
+	main(startYear,endYear,input_dir,njobs,outfile)
 	print('complete')
 	sys.exit()
 
