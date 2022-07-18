@@ -466,19 +466,19 @@ function snic01 (snic_composites,aoi,grid_scale,epsg){
   var SNICmeans = SNICpixels.toInt32().clip(aoi); //previously SNIC_means_image
   
   //try just creating some random points 
-  var snicPts = ee.FeatureCollection.randomPoints({
-    region:aoi,
-    points:20000,
-    seed:10
-    })
+  // var snicPts = ee.FeatureCollection.randomPoints({
+  //   region:aoi,
+  //   points:20000,
+  //   seed:10
+  //   })
   
   // snicPts = samplePts(snicPts,SNICimagery); 
   //create a grid to subtile the snic images
-  // var grid = aoi.coveringGrid(epsg, grid_scale).filterBounds(aoi); //the int here is a bit variable
+  var grid = aoi.coveringGrid(epsg, grid_scale).filterBounds(aoi); //the int here is a bit variable
   
-  // var snicPts = splitPixImg(SNICmeans.select('clusters'),grid)
+  var snicPts = splitPixImg(SNICmeans.select('clusters'),grid)
   
-  // // do the sampling -try without the sampling to see if the problem is isolated
+  // do the sampling 
   snicPts = samplePts(snicPts,SNICimagery); 
   
   return ee.List([snicPts,SNICimagery]); 
