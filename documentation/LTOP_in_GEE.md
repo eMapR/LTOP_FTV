@@ -38,9 +38,7 @@ Ultimately, the optimization requires that LT be run hundreds of times to evalua
 
 Thus, the first step is to organize our study area into patches.  We use GEE's SNIC processing on an image that is meant to capture the spectral and temporal variability of the study area.  
 
-Decisions to be made:
-- 
-
+Additional information about this step, the logic behind it and some of the potential associated pitfalls can be viewed [here](https://docs.google.com/presentation/d/12hi10WmqZGdvJ9BjxSDukXQHGmzJNPAyJavObrmfVbg/edit?usp=sharing)
 
 
  similar changes and LT oirst, we want to break up an image into spectrally similar chunks. This takes the form of patches of pixels with similar spectral properties. These could be pixels that make up a pond or a stand of forest. One thing to note is that every patch is independent of the other patches even if two patches represent the same land class. From this script we get a seed image, which represents the starting point of each patch. The seed image has several bands that point to mean spectral values of that seed's patch. For something the size of Laos, this should take about an hour to run. 
