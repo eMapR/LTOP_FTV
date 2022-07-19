@@ -38,6 +38,8 @@ Ultimately, the optimization requires that LT be run hundreds of times to evalua
 
 Thus, the first step is to organize our study area into patches.  We use GEE's SNIC processing on an image that is meant to capture the spectral and temporal variability of the study area.  For SNIC to work, we need to build an single image that is a stack of single-date spectral images from several different years across the study period.  By incorporating images from across different years, we capture broad changes in land cover. 
 
+For more information on the background, potential pitfalls etc. see the [Google Slides](https://docs.google.com/presentation/d/12hi10WmqZGdvJ9BjxSDukXQHGmzJNPAyJavObrmfVbg/edit?usp=sharing)
+
 ##### Decisions to be made:
 - Spectral form of images to use in stack.   We use Tasseled-cap imagery because it efficiently captures spectral variance, but you could use something else. 
 - Years of imagery to use in stack.  We use the beginning year, a middle year, and the end year, but you could add more.  
