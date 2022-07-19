@@ -36,12 +36,15 @@ Overview of script platform distribution (GEE vs Python):
 
 Ultimately, the optimization requires that LT be run hundreds of times to evaluate which set of parameters is best. This is not tractable for every pixel.  Further, it is not necessary:  a given set of parameters will work for pixels that have similar conditions in terms of cover and change processes.  Thus, our first step is to find groups of pixels that have those similarities, and use them for all further steps. 
 
-Thus, the first step is to organize our study area into patches.  We use GEE's SNIC processing on an image that is meant to capture the spectral and temporal variability of the study area.  
+Thus, the first step is to organize our study area into patches.  We use GEE's SNIC processing on an image that is meant to capture the spectral and temporal variability of the study area.  For SNIC to work, we need to build an single image that is a stack of single-date spectral images from several different years across the study period.  By incorporating images from across different years, we capture broad changes in land cover. 
 
-Additional information about this step, the logic behind it and some of the potential associated pitfalls can be viewed [here](https://docs.google.com/presentation/d/12hi10WmqZGdvJ9BjxSDukXQHGmzJNPAyJavObrmfVbg/edit?usp=sharing)
+##### Decisions to be made:
+- Spectral form of images to use in stack.   We use Tasseled-cap imagery because it efficiently captures spectral variance, but you could use something else. 
+- Years of imagery to use in stack.  We use the beginning year, a middle year, and the end year, but you could add more.  
+- The seed spacing for the SNIC algorithm.  The seeds are the spatial origin of the SNIC patches, and a tighter spacing will result in smaller patches.  
 
-
- similar changes and LT oirst, we want to break up an image into spectrally similar chunks. This takes the form of patches of pixels with similar spectral properties. These could be pixels that make up a pond or a stand of forest. One thing to note is that every patch is independent of the other patches even if two patches represent the same land class. From this script we get a seed image, which represents the starting point of each patch. The seed image has several bands that point to mean spectral values of that seed's patch. For something the size of Laos, this should take about an hour to run. 
+##### Outputs:
+From this script we get a seed image, which represents the starting point of each patch. The seed image has several bands that point to mean spectral values of that seed's patch. For something the size of Laos, this should take about an hour to run. 
 
 	1. Script location: https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/01_run_SNIC.js
 
