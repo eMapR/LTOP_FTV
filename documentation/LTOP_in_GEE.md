@@ -6,30 +6,33 @@ One impediment to running LT over large geographic domains is selecting the best
 
 Traditionally, LT has been run over an image collection with a single LT parameter configuration and is able to remove natural variation for every pixel time series in an image. But no individual LandTrendr parameter configuration is best for all surface conditions. For example, one paramater set might be best for forest cover change while another might be preferred for agricultural phenology or reservoir flooding. To address this shortcoming, we developed a method that delineates patches of spectrally similar pixels from input imagery and then finds the best LandTrendr parameters group. We then run LandTrendr on each patch group location with a number of different paramater sets and assign scores to decide on the best parameter configuration. This process is referred to as LandTrendr Optimization (LTOP). 
 
-[General overview of theory and background](https://docs.google.com/presentation/d/1ra8y7F6_vyresNPbT3kYamVPyxWSfzAm7hCMc6w8N-M/edit?usp=sharing)
+#### Document outline and workflow overview
+This document outlines the overall workflow for running a version of LTOP that is (mostly) based on five GEE scripts. There are two distinct steps that are currently implemented in Python and run locally. This may be changed in future versions depending on needs and expertise. Each step is associated with a script or pair of scripts that produce some kind of output that is generally the input to at least the succeeding step and in some cases, later steps as well. The workflow assumes some understanding of running scripts in GEE, generating jobs and exporting assets or files to gDrive. The approach also assumes some understanding of Python and how to at least run a Python script in an IDE or from the command line. We start by outlining some of the background for the process, some information on the general overview of the workflow and how this could be set up for somebody to actually run. We then go through the steps to produce LTOP output, how the outputs can be assessed and then some of the pitfalls one might run into while carrying out this workflow. Note that to produce temporally stabilized outputs of an existing time series see the SERVIR_stabilization [GitHub repository](https://github.com/eMapR/SERVIR_stabilization). 
 
-### LTOP Work Flow (Step by Step) 
+
+[General overview of theory and background](https://docs.google.com/presentation/d/1ra8y7F6_vyresNPbT3kYamVPyxWSfzAm7hCMc6w8N-M/edit?usp=sharing)
 
 Workflow conceptual diagram: 
 ![img](https://docs.google.com/drawings/d/e/2PACX-1vQ9Jmb4AhD86GedXTH798O4hGCNDyCp-ZMcYEB1Ij8fuhNqc4xhDuO3x9JSttq6Tk2g9agWP2FWhoU-/pub?w=960&h=720)
 
-Workflow overview: 
+Overview of script platform distribution (GEE vs Python): 
 ![img](https://docs.google.com/drawings/d/e/2PACX-1vTVthwPV6yUcagGQcBUSWr443lJuaeCg8r03QlmrvHOwbrp3J08lKh0zDRMORpmts3qrtkpOevzB1lm/pub?w=960&h=720)
 
-#### NOTES on preparing to run the LTOP workflow
+#### Background setup for running LTOP workflow 
 
 1. We suggest that you create a dedicated directory on a local drive to hold scripts and intermediate outputs of the LTOP workflow. This can be created by [cloning](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) our [GitHub repo](https://github.com/eMapR/LTOP_FTV/tree/master/scripts). 
 
-2. You can then create basic container directories for intermediate outputs (e.g., rasters, vectors, csvs). 
+2. You can then create basic container directories for intermediate outputs (e.g., rasters, vectors, csvs). In the docs below, we refer to /path/to/directory when specifying outputs. It is up to the user to specify where those things are going based on the file/directory structures set up on your instance. 
 
 3. The general setup for this implementation of LTOP relies on five major steps laid out in short, simple scripts. Each of these scripts call functions in the [modules library](https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/LTOP_modules_version_2_0.js) to do the work. Ideally, the user does not need to look at the modules script if they don't want to. 
 
-4. Most of the heavy lifting is done in GEE but a few intermediate steps are conducted in Python. It is suggested that you create a dedicated conda env for these steps. It should not be an issue but note that it must be a 3.x env for the LTOP scripts to work. 
+4. Most of the heavy lifting is done in GEE but a few intermediate steps are conducted in Python. It is suggested that you [create a dedicated conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands) for these steps. It should not be an issue but note that it must be a 3.x env for the LTOP scripts to work. 
 
 5. Note that the script locations given below are based on script locations and directory structure on GitHub. When you clone the repo to a local directory you will need to update these paths wherever they are required (mostly the python-based steps towards the end of the workflow). 
 
+#### LTOP Work Flow (Step by Step) 
 
-#### 1 Run 01_run_SNIC in GEE to generate SNIC images (GEE)
+### 1 Run 01_run_SNIC in GEE to generate SNIC images (GEE)
 
 Ultimately, the optimization requires that LT be run hundreds of times to evaluate which set of parameters is best. This is not tractable for every pixel.  Further, it is not necessary:  a given set of parameters will work for pixels that have similar conditions in terms of cover and change processes.  Thus, our first step is to find groups of pixels that have those similarities, and use them for all further steps. 
 
@@ -39,7 +42,6 @@ Thus, the first step is to organize our study area into patches.  We use GEE's S
 - Spectral form of images to use in stack.   We use Tasseled-cap imagery because it efficiently captures spectral variance, but you could use something else. 
 - Years of imagery to use in stack.  We use the beginning year, a middle year, and the end year, but you could add more.  
 - The seed spacing for the SNIC algorithm.  The seeds are the spatial origin of the SNIC patches, and a tighter spacing will result in smaller patches.  
-
 
 ##### Outputs:
 From this script we get a seed image, which represents the starting point of each patch. The seed image has several bands that point to mean spectral values of that seed's patch. For something the size of Laos, this should take about an hour to run. 
@@ -54,7 +56,7 @@ From this script we get a seed image, which represents the starting point of eac
 
 	5. Start Tasks
 
-#### 2 Kmeans cluster from SNIC patches (GEE) 
+### 2 Kmeans cluster from SNIC patches (GEE) 
 
 Now we cluster the SNIC patches into similar land class categories. Note that in the original version of LTOP the wekeKmeans algorithm in GEE was producing the specified 5000 clusters. However, in later versions, it will only produce a fraction of that. This means that other scripts downstream of this point are changed to accommodate the different cluster id naming conventions. Note that if you are not running in the lab account and if you are running for a different place you will need to change filepaths to reflect the location of the uploaded points asset.   
 	
@@ -68,7 +70,7 @@ Now we cluster the SNIC patches into similar land class categories. Note that in
 
 	5. Start tasks
 
-#### 3 Sample Landsat Image Collections with the xx Kmeans Cluster Points (GEE)
+### 3 Sample Landsat Image Collections with the xx Kmeans Cluster Points (GEE)
 
 With the subset sample of Kmeans Cluster points, a point for each cluster ID, sample a time series of Landsat Imagery (TCB TCG TCW NBR and NDVI). This sample is exported as a table from GEE. Note that for this and other GEE processes that the dates are not always uniform.  
 
@@ -86,7 +88,7 @@ With the subset sample of Kmeans Cluster points, a point for each cluster ID, sa
 	6. Run tasks. NOTE that this will send output csvs to your gDrive and will create a folder that looks like: [place_name]_abstract_images
 
 
-#### 4 Download CSV from Google Drive (Moving Data)
+### 4 Download CSV from Google Drive (Moving Data)
 
 Download the table 
 
@@ -95,7 +97,7 @@ Download the table
 		"LTOP_"+place+"_Abstract_Sample_annualSRcollection_NBRTCWTCGNDVIB5_c2_"+str_start+"_start_renamed"
 
 
-#### 5 Create Abstract image with CSV (python) 
+### 5 Create Abstract image with CSV (python) 
 
 Here we create an abstract image. We start with the table that contains a time series of spretral values for xx points. These points locations are moved to be adjsent to one aonther, and are turned into pixels with each observation in the time series a new image of pixels. This script exports a TIFF image for every year in the time series and a new point vector file at each pixel locaton. Note that if you look at these in a GIS GUI or on GEE they will be in a weird location like in the middle of the Pacific Ocean. Don't worry about that, that is what should happen. 
 
@@ -120,7 +122,7 @@ Here we create an abstract image. We start with the table that contains a time s
 		python csv_to_abstract_images_5k_update.py
 
 
-#### 6 Upload rasters to GEE and make image collection (Moving Data)
+### 6 Upload rasters to GEE and make image collection (Moving Data)
 
 We then upload the abstract images to GEE
 
@@ -131,14 +133,14 @@ We then upload the abstract images to GEE
 	3. An imageCollection will be created from these images in the next step. 
 
 
-#### 7 Upload SHP to GEE (Moving Data)
+### 7 Upload SHP to GEE (Moving Data)
 
 Upload the shp file that acompanied the abstract image.
 
 	1. Upload the shapefile that was created in step 5 above as an asset to GEE. 
 
 
-#### 8 Run Abstract image for each index (GEE). The modules script is going to implement a four loop to run all indices. 
+### 8 Run Abstract image for each index (GEE). The modules script is going to implement a four loop to run all indices. 
 
 	1. Script location: https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/04_abstract_imager.js
 	
@@ -150,13 +152,13 @@ Upload the shp file that acompanied the abstract image.
 
 	5. Run tasks. Note that this will create a folder in your gDrive named like "LTOP_"+place+"_abstractImageSamples_c2_revised_ids". It will create a csv for each index. 
  
-#### 9 Download folder containing CSV‘s one for each index (Moving Data). 
+### 9 Download folder containing CSV‘s one for each index (Moving Data). 
 	
 	1. gDrive location:  "LTOP_"+place+"_abstractImageSamples_c2_revised_ids"
 
 	2. Local directory example: /path/to/local_directories/tables/LTOP_*place*_Abstract_Image_LT_data/
 
-#### 10 Run LT Parameter Scoring scripts (Python). Note that since the change in the number of kmeans clusters this runs much faster than it did before when there were always 5000 clusters. 
+### 10 Run LT Parameter Scoring scripts (Python). Note that since the change in the number of kmeans clusters this runs much faster than it did before when there were always 5000 clusters. 
 
 	1. Script locaton: https://github.com/eMapR/LTOP_FTV/blob/master/scripts/lt_seletor/01_ltop_lt_paramater_scoring_reweighted_revised.py
 
@@ -178,7 +180,7 @@ Upload the shp file that acompanied the abstract image.
 
 		python ./path/to/local_directory/scripts/lt_seletor/01_ltop_lt_paramater_scoring_reweighted_revised.py
 
-#### 11 Run LTOP Parameter Selecting Script (Python). This script runs very quickly (a few mins). 
+### 11 Run LTOP Parameter Selecting Script (Python). This script runs very quickly (a few mins). 
 
 
 	1. Script location: https://github.com/eMapR/LTOP_FTV/blob/master/scripts/lt_seletor/02_ltop_select_top_parameter_configuration.py
@@ -199,7 +201,7 @@ Upload the shp file that acompanied the abstract image.
 
 		python /path/to/local_directory/scripts/lt_seletor/02_ltop_select_top_parameter_configuration.py
 
-#### 12 Upload CSV to GEE (Moving Data)
+### 12 Upload CSV to GEE (Moving Data)
 
 	1. CSV location 
 
@@ -208,7 +210,7 @@ Upload the shp file that acompanied the abstract image.
 	2. Upload CSV created in step 11 as an asset to GEE	
 
 	
-#### 13 Generate LTOP output in GEE. This will generate a GEE asset which is the primary output of the LTOP process. This will be a multiband image with one band up to the max number of vertices. Defaults to 11 in the LTOP workflow.
+### 13 Generate LTOP output in GEE. This will generate a GEE asset which is the primary output of the LTOP process. This will be a multiband image with one band up to the max number of vertices. Defaults to 11 in the LTOP workflow.
 
 	1. script location: https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/05_generate_LTOP.js
 
