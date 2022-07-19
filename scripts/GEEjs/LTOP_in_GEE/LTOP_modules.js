@@ -5,28 +5,55 @@
 //########################################################################################################
 
 
-// date: 2020-12-10
+// date: 2022-07-19
 // author: Peter Clary        | clarype@oregonstate.edu
 //         Robert Kennedy     | rkennedy@coas.oregonstate.edu
 //         Ben Roberts-Pierel | robertsb@oregonstate.edu
 // website: https://github.com/eMapR/LT-GEE
 
+//This library holds modules for running an optimized version of the LandTrendr algorithm. The process addresses an 
+//issue of paramaterizing the LT algorithm for different types of land cover/ land use. 
 
-//  This program takes a raster stack of images and constellates pixels that are spectrally similar around a 
-//  seed pixel. The rasters used are harmonized landsat images for a given date window in a year over a yearly 
-//  time series.   
 var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////Build an imageCollection from SERVIR comps /////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 
+function buildSERVIRcompsIC(startYear,endYear){
+//get the SERVIR composites
+  var yr_images = []; 
+  for (var y = startYear;y < endYear+1; y++){
+    var im = ee.Image("projects/servir-mekong/composites/" + y.toString()); 
+    yr_images.push(im); 
+  }
+  var servir_ic = ee.ImageCollection.fromImages(yr_images); 
+  
+  //it seems like there is an issue with the dates starting on January 1. This is likely the result of a time zone difference between where 
+  //the composites were generated and what the LandTrendr fit algorithm expects from the timestamps. 
+  servir_ic = servir_ic.map(function(img){
+    var date = img.get('system:time_start'); 
+    return img.set('system:time_start',ee.Date(date).advance(6,'month').millis()); 
+  }); 
+  
+  //the rest of the scripts will be easier if we just rename the bands of these composites to match what comes out of the LT modules
+  //note that if using the SERVIR composites the default will be to get the first six bands without the percentile bands
+  var comps = servir_ic.map(function(img){
+    return img.select(['blue','green','red','nir','swir1','swir2'],['B1','B2','B3','B4','B5','B7']);
+  }); 
+return comps; 
+}
+
+exports.buildSERVIRcompsIC = buildSERVIRcompsIC; 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// 01 SNIC ////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //run SNIC and return the imagery 
-var runSNIC = function(composites,aoi){
+var runSNIC = function(composites,aoi,patchSize){
 var snicImagery = ee.Algorithms.Image.Segmentation.SNIC({
   image: composites,
-  size: 10, //changes the number and size of patches 
+  size: patchSize, //changes the number and size of patches 
   compactness: 1, //degrees of irregularity of the patches from a square 
   }).clip(aoi);
   
@@ -68,21 +95,6 @@ var pixelsToPts = function(img,aoi){
   return ee.FeatureCollection(vectors); 
 }; 
 
-//try reduceToVectors
-// var pixelsToPts = function(img,aoi){
-//   var vectors = img.reduceToVectors({
-//     geometry:aoi, 
-//     scale:30, 
-//     geometryType:'centroid',
-//     maxPixels:1e13
-//   });
-//   return vectors; 
-  
-// }; 
-
-
-// exports.pixelsToPts = pixelsToPts;  
-
 //subset fc
 var subsetFC = function(fc,grid_pts_max){
   var output_fc = fc.randomColumn({
@@ -97,17 +109,18 @@ var subsetFC = function(fc,grid_pts_max){
 }; 
 
 // exports.subsetFC = subsetFC; 
+
 //there is an issue where GEE complains if we straight convert pixels to points because there are too many. Try tiling the image and converting those first. 
-var splitPixImg = function(means_img,grid){
+var splitPixImg = function(means_img,grid,pts_per_tile){
   //we map over the grid tiles, subsetting the image
-  var num_pts = 50//(ee.Number(pts_max).divide(ee.Number(grid.size()))).toInt(); 
+  var num_pts = pts_per_tile;
   var tile_pts = grid.map(function(feat){
-  var tile_bounds = feat.geometry().buffer(-250) //could be changed
+  var tile_bounds = feat.geometry().buffer(-250); //could be changed
   var img_tile = means_img.clip(tile_bounds); //remove this if it errors 
   var pts = pixelsToPts(means_img,tile_bounds); 
   //try subsetting the points here before putting them back together to reduce the size of the dataset 
   pts = subsetFC(pts,num_pts); 
-  return pts 
+  return pts;  
   }); 
   return tile_pts.flatten(); 
 }; 
@@ -126,16 +139,6 @@ var samplePts = function(pts,img){
   }); 
   return ee.FeatureCollection(output); 
 }; 
-  // var output = img.reduceRegions({
-  //   collection:pts, 
-  //   reducer: ee.Reducer.first(), 
-  //   scale: 30
-  // }); 
-  // return output; 
-
-
-// exports.samplePts = samplePts; 
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// 02 kMeans //////////////////////////////////////////////////////////
@@ -173,30 +176,11 @@ var selectKmeansPts = function(img,aoi){
   scale:30, 
   seed:5,
   geometries:true
-})
-return kmeans_points
-}
-
-exports.selectKmeansPts = selectKmeansPts; 
-
-//DEPRECATED (I think...)
-//now we replace the steps done in QGIS to get the cluster ids with the pts from the SNIC section 
-var cleanKmeansPts = function(pts){
-  //this function needs to drop duplicates but take a random pt in cases where there is a duplicate 
-  var ids = pts.aggregate_array('first'); //hardcoded for first, this should probably be changed 
-  var output_pts = ids.map(function(id){
-    var fc = pts.filter(ee.Filter.eq('first',id)); 
-    fc = fc.randomColumn('kmeans_rand',2,'uniform')
-           .sort('kmeans_rand')
-           .first(); 
-    return fc; 
-  }); 
-  return ee.FeatureCollection(output_pts); 
+}); 
+return kmeans_points; 
 }; 
 
-exports.cleanKmeansPts = cleanKmeansPts; 
-
-
+exports.selectKmeansPts = selectKmeansPts; 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// 03 abstractSampler /////////////////////////////////////////////////
@@ -226,7 +210,7 @@ var computeIndices = function(ic){
 
   return img.select(['NBR', 'TCW', 'TCG', 'NDVI', 'B5']).toFloat();
   }); 
-  return output_ic
+  return output_ic; 
 }; 
 
 exports.computeIndices = computeIndices; 
@@ -280,6 +264,7 @@ exports.runExtraction = runExtraction;
 //define some LT params for the different versions of LT run below: 
 // LandTrendr Parameters 
 ///////////////////////////////////////////////////////////
+//ideally, this is moved into another more user friendly/readable format
 var runParams = [{timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 6 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 6 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 8 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 8 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 10 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 10 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.75, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 0.9, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.25, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.5, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 0.9, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.05, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.1, bestModelProportion: 0.75, minObservationsNeeded: 11 }, {timeSeries: ee.ImageCollection([]), maxSegments: 11 , spikeThreshold: 1.0, vertexCountOvershoot: 3, preventOneYearRecovery: true, recoveryThreshold: 1.0, pvalThreshold: 0.15, bestModelProportion: 0.75, minObservationsNeeded: 11 }];
 
 //function to create a timestamp for the abstract images 
@@ -380,7 +365,7 @@ exports.mergeLToutputs = mergeLToutputs;
 //////////////////////////////// 05 Optimized Imager ////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//write a new general function that takes the place of all the copied functions below - plan to map this over the lists above
+//Run the versions of LT we selected, uses masks to run the correct version for the SNIC patches in a given kmeans cluster
 //input args are the index tables above and the associated imageCollection
 var printerFunc = function(fc,ic,cluster_image,aoi){
   var output = fc.map(function(feat){
@@ -447,22 +432,21 @@ var filterTable = function(pt_list,index){
   return pt_list.filter(ee.Filter.eq('index',index)); 
 }; 
 
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// Invoking functions /////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-//now set up functions for calling each step?? 
+//now set up functions for calling each step. These are like wrappers for the above functions and are called externally. 
 
 //////////////////////////////////////////////////////
 //////////////////////////////// 01 SNIC /////////////
 //////////////////////////////////////////////////////
-function snic01 (snic_composites,aoi,grid_scale,epsg){
+function snic01 (snic_composites,aoi,grid_scale,epsg,patch_size,pts_per_tile){
   //run the SNIC algorithm   
-  var SNICoutput = runSNIC(snic_composites,aoi); 
+  var SNICoutput = runSNIC(snic_composites,aoi,patch_size); 
   var SNICpixels = SNICmeansImg(SNICoutput,aoi); 
   
   //these were previously the two things that were exported to drive 
-  var SNICimagery = SNICoutput.toInt32()//.reproject({  crs: 'EPSG:4326',  scale: 30}); //previously snicImagery
+  var SNICimagery = SNICoutput.toInt32();//.reproject({  crs: 'EPSG:4326',  scale: 30}); //previously snicImagery
   var SNICmeans = SNICpixels.toInt32().clip(aoi); //previously SNIC_means_image
   
   //try just creating some random points 
@@ -476,7 +460,7 @@ function snic01 (snic_composites,aoi,grid_scale,epsg){
   //create a grid to subtile the snic images
   var grid = aoi.coveringGrid(epsg, grid_scale).filterBounds(aoi); //the int here is a bit variable
   
-  var snicPts = splitPixImg(SNICmeans.select('clusters'),grid)
+  var snicPts = splitPixImg(SNICmeans.select('clusters'),grid,pts_per_tile); 
   
   // do the sampling 
   snicPts = samplePts(snicPts,SNICimagery); 
@@ -487,6 +471,7 @@ function snic01 (snic_composites,aoi,grid_scale,epsg){
 }
 
 exports.snic01 = snic01; 
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// 02 kMeans //////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -577,16 +562,7 @@ exports.abstractImager04 = abstractImager04;
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// 05 Optimized Imager ////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-//the primary inputs for this are the kmeans image and the selected params 
-//kmeans image output
-// var cluster_image = ee.Image("users/ak_glaciers/ltop_snic_seed_points75k_kmeans_cambodia_c2_1990")
-// Map.addLayer(cluster_image,{},'cluster image')
-// //selected params from the two python scripts that come after the 04 script 
-// var table = ee.FeatureCollection("users/ak_glaciers/LTOP_Cambodia_config_selected_220_kmeans_pts_new_weights");
-
-// cast the feature collection (look up table) to list so we can filter and map it. Note that the number needs to be adjusted here 
-//to the number of unique cluster ids in the kmeans output 
-
+// cast the feature collection (look up table) to list so we can filter and map it. 
 function optimizedImager05(table,annualSRcollection,kmeans_output,aoi){
   var lookUpList =  table.toList(table.size());   
   
