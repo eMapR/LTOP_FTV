@@ -6,7 +6,12 @@ One impediment to running LT over large geographic domains is selecting the best
 
 Traditionally, LandTrendr is run over an image collection with a single LandTrendr parameter configuration and is able to remove natural variation for every pixel time series in an image. But no individual LandTrendr parameter configuration is best for all surface conditions. For example, one paramater set might be best for forest cover change while another might be preferred for agricultural phenology or reservoir flooding. To address this shortcoming, we developed a method that delineates patches of spectrally similar pixels from input imagery and then finds the best LandTrendr parameters group. We then run LandTrendr on each patch group location with a number of different paramater sets and assign scores to decide on the best parameter configuration. 
 
+This repository is organized into two primary directories: 
 
-This is a test to see how the merging issues will work. 
+-Documentation
 
-################ PLACEHOLDER for repo overview #################
+-Scripts
+
+Documentation holds markdown files for different optimized versions and things that can be done with the outputs. 
+
+Scripts contains all the associated scripts referenced in the documentation. 
