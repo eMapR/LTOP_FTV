@@ -22,7 +22,7 @@ Overview of script platform distribution (GEE vs Python):
 
 1. We suggest that you create a dedicated directory on a local drive to hold scripts and intermediate outputs of the LTOP workflow. This can be created by [cloning](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) our [GitHub repo](https://github.com/eMapR/LTOP_FTV/tree/master/scripts). 
 
-2. You can then create basic container directories for intermediate outputs (e.g., rasters, vectors, csvs). In the docs below, we refer to /path/to/directory when specifying outputs. It is up to the user to specify where those things are going based on the file/directory structures set up on your instance. 
+2. You can then create basic container directories for intermediate outputs (e.g., rasters, vectors, csvs). In the docs below, we refer to /path/to/directory when specifying outputs. It is up to the user to specify where those things are going based on the file/directory structures set up on your instance. More information is available on the associated [Google Slides](https://docs.google.com/presentation/d/1TYReEOlm0Z5AfGKvb_bZfoM9b_GDNSzE6R8qQJE63WU/edit?usp=sharing)
 
 3. We would suggest that you create a dedicated folder in your GEE home directory to hold associated scripts and a dedicated folder in your assets to hold intermediate assets during this process. You can specify where you want this to be in the scripts by changing asset root and child arguments. 
 
@@ -36,11 +36,11 @@ Overview of script platform distribution (GEE vs Python):
 
 ## LTOP Work Flow (Step by Step) 
 
-### 1 Run 01_run_SNIC in GEE to generate SNIC images (GEE)
+### 1 Generate SNIC image (GEE)
 
 Ultimately, the optimization requires that LT be run hundreds of times to evaluate which set of parameters is best. This is not tractable for every pixel.  Further, it is not necessary:  a given set of parameters will work for pixels that have similar conditions in terms of cover and change processes.  Therefore, our first step is to find groups of pixels that have those similarities, and use them for all further steps. 
 
-Thus, the first step is to organize our study area into patches.  We use GEE's SNIC processing on an image that is meant to capture the spectral and temporal variability of the study area.  For SNIC to work, we need to build a single image that is a stack of single-date spectral images from several different years across the study period.  By incorporating images from across different years, we capture broad changes in land cover. 
+Thus, the first step is to organize our study area into patches.  We use GEE's Simple non-iterative clustering (SNIC) processing on an image that is meant to capture the spectral and temporal variability of the study area.  For SNIC to work, we need to build a single image that is a stack of single-date spectral images from several different years across the study period.  By incorporating images from across different years, we capture broad changes in land cover. 
 
 For more information on the background, potential pitfalls etc. see the associated [Google Slides](https://docs.google.com/presentation/d/12hi10WmqZGdvJ9BjxSDukXQHGmzJNPAyJavObrmfVbg/edit?usp=sharing)
  

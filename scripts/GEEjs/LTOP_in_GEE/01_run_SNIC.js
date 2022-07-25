@@ -25,7 +25,7 @@ var place = 'Cambodia';
 var startYear = 1990; 
 var endYear = 2021; 
 var grid_scale = 20000; 
-var patch_size = 10; 
+var seed_spacing = 10; 
 var pts_per_tile = 50; 
 var image_source = 'servir'; 
 var epsg = 'EPSG:4326'; 
@@ -66,7 +66,7 @@ var LandsatComposites = imageEnd.addBands(imageMid).addBands(imageStart);
 //////////////////////////////// Call the functions /////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // 1. run the snic algorithm 
-var snic_output01 = ltop.snic01(LandsatComposites,aoi,grid_scale,epsg,patch_size,pts_per_tile); 
+var snic_output01 = ltop.snic01(LandsatComposites,aoi,grid_scale,epsg,seed_spacing,pts_per_tile); 
 
 var str_start = ee.Number(startYear).format().getInfo(); 
 
