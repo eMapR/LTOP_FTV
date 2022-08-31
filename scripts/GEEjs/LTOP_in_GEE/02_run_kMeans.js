@@ -1,4 +1,3 @@
-
 //######################################################################################################## 
 //#                                                                                                    #\\
 //#                                         LandTrendr Optimization workflow                           #\\
@@ -15,38 +14,34 @@
 //////////////////////////////// Import modules /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
-var ltop = require('users/emaprlab/public:Modules/LTOP_modules.js')
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// Time, space and masking params /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-var str_start = '1990'; 
-var place = 'Cambodia'; 
-var assets_root = 'users/ak_glaciers/'; 
-var assets_child = 'servir_training_tests'; 
-var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA',place)).geometry().buffer(5000);
+var ltgee = require('users/ak_glaciers/adpc_servir_LTOP:modules/LandTrendr.js'); 
+var ltop = require('users/ak_glaciers/adpc_servir_LTOP:modules/LTOP_modules.js'); 
+var params = require('users/ak_glaciers/adpc_servir_LTOP:modules/params.js'); 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// Call the functions /////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// 2. cluster the snic patches with kmeans 
-var kmeans_output02 = ltop.kmeans02(ee.FeatureCollection(assets_root+assets_child+"/LTOP_SNIC_pts_"+place+"_c2_mapped_tile_"+str_start),
-                                ee.Image(assets_root+assets_child+"/LTOP_SNIC_imagery_"+place+"_c2_mapped_tile_"+str_start),
-                                aoi); 
+// 2. cluster the snic patches with kmeans - added a filter to remove points that didn't get valid values in previous step
+var kmeans_output02_1 = ltop.kmeans02_1(ee.FeatureCollection(params.assetsRoot+params.assetsChild+"/LTOP_SNIC_pts_"+params.place+"_c2_"+params.randomPts.toString()+"_pts_"+params.startYear.toString()).filter(ee.Filter.neq('B1_mean',null)),
+                                ee.Image(params.assetsRoot+params.assetsChild+"/LTOP_SNIC_imagery_"+params.place+"_c2_"+params.randomPts.toString()+"_pts_"+params.startYear.toString()),
+                                params.aoi,
+                                params.minClusters,
+                                params.maxClusters); 
+var kmeans_output02_2 = ltop.kmeans02_2(kmeans_output02_1); 
+
 //export the kmeans output image to an asset
 Export.image.toAsset({
-            image: kmeans_output02.get(0), 
-            description:"LTOP_kmeans_cluster_image_"+place+"_c2_"+str_start, 
-            assetId:assets_child+"/LTOP_kmeans_cluster_image_"+place+"_c2_"+str_start, 
-            region:aoi, 
+            image: kmeans_output02_1,//kmeans_output02.get(0), 
+            description:"LTOP_KMEANS_cluster_image_"+params.randomPts.toString()+"_pts_"+params.maxClusters.toString()+"_max_"+params.minClusters.toString()+"_min_clusters_"+params.place+"_c2_"+params.startYear.toString(), 
+            assetId:params.assetsChild+"/LTOP_KMEANS_cluster_image_"+params.randomPts.toString()+"_pts_"+params.maxClusters.toString()+"_max_"+params.minClusters.toString()+"_min_clusters_"+params.place+"_c2_"+params.startYear.toString(),             
+            region:params.aoi, 
             scale:30,
             maxPixels:1e13, 
 }); 
 
 //export a fc with one point for every unique cluster id in the kmeans output
 Export.table.toAsset({
-            collection:ee.FeatureCollection(kmeans_output02.get(1)),
-            description: 'LTOP_'+place+'_kmeans_stratified_random_cluster_points', 
-            assetId:assets_child+'/LTOP_'+place+'_kmeans_stratified_random_cluster_points'
+            collection:kmeans_output02_2,
+            description: 'LTOP_KMEANS_stratified_points_'+params.maxClusters.toString()+'_max_'+params.minClusters.toString()+'_min_clusters_'+params.place+'_c2_'+params.startYear.toString(), 
+            assetId:params.assetsChild+'/LTOP_KMEANS_stratified_points_'+params.maxClusters.toString()+'_max_'+params.minClusters.toString()+'_min_clusters_'+params.place+'_c2_'+params.startYear.toString()
 }); 

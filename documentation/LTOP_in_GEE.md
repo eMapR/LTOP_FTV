@@ -1,5 +1,7 @@
 # LTOP Overview
 
+version: 0.0.1
+
 LandTrendr (LT) is a set of spectral-temporal segmentation algorithms that focuses on removing the natural spectral variations in a time series of Landsat Images. Stabilizing the natural variation in a time series emphasizes how a landscape evolves with time. This is useful in many areas as it gives information on the state of a landscape. This includes many different natural and anthropogenic processes including: growing seasons, phenology, stable landscapes, senesence, clearcut etc. LandTrendr is mostly used in Google Earth Engine (GEE), an online image processing console, where it is readily available for use.  
 
 One impediment to running LT over large geographic domains is selecting the best paramater set for a given landscape. The LandTrendr GEE function uses 9 arguments: 8 parameters that control how spectral-temporal segmentation is executed, and an annual image collection on which to assess and remove the natural variations. The original LandTrendr article (Kennedy et al., 2010) illustrates some of the effects and sensitivity of changing some of these values. The default parameters for the LandTrendr GEE algorithm do a satisfactory job in many circumstances, but extensive testing and time is needed to hone the parameter selection to get the best segmentation out of the LandTrendr algorithm for a given region. Thus, augmenting the LandTrendr parameter selection process would save time and standardize a method to choose parameters, but we also aim to take this augmentation a step further. 
@@ -20,13 +22,13 @@ Overview of script platform distribution (GEE vs Python):
 
 ## Background setup for running LTOP workflow 
 
-1. We suggest that you create a dedicated directory on a local drive to hold scripts and intermediate outputs of the LTOP workflow. This can be created by [cloning](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) our [GitHub repo](https://github.com/eMapR/LTOP_FTV/tree/master/scripts). 
+1. We suggest that you create a dedicated directory on a local drive to hold scripts and intermediate outputs of the LTOP workflow. This can be created by [cloning](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) our [GitHub repo](https://github.com/eMapR/LTOP_FTV/tree/master/scripts). Alternatively, you can access the scripts and their associated modules at the [public repo](https://code.earthengine.google.com/?accept_repo=users/ak_glaciers/adpc_servir_LTOP) or you can clone directly from GEE with git clone https://earthengine.googlesource.com/users/ak_glaciers/adpc_servir_LTOP
 
-2. You can then create basic container directories for intermediate outputs (e.g., rasters, vectors, csvs). In the docs below, we refer to /path/to/directory when specifying outputs. It is up to the user to specify where those things are going based on the file/directory structures set up on your instance. More information is available on the associated [Google Slides](https://docs.google.com/presentation/d/1TYReEOlm0Z5AfGKvb_bZfoM9b_GDNSzE6R8qQJE63WU/edit?usp=sharing)
+2. Regardless, you likely want to create basic container directories for intermediate outputs (e.g., rasters, vectors, csvs). In the docs below, we refer to /path/to/directory when specifying outputs. It is up to the user to specify where those things are going based on the file/directory structures set up on your instance. More information is available on the associated [Google Slides](https://docs.google.com/presentation/d/1TYReEOlm0Z5AfGKvb_bZfoM9b_GDNSzE6R8qQJE63WU/edit?usp=sharing)
 
-3. We would suggest that you create a dedicated folder in your GEE home directory to hold associated scripts and a dedicated folder in your assets to hold intermediate assets during this process. You can specify where you want this to be in the scripts by changing asset root and child arguments. 
+3. We would suggest that you create a dedicated folder in your GEE home directory to hold associated scripts and a dedicated folder in your assets to hold intermediate assets during this process. You can specify where you want this assets folder to be by changing asset root and child arguments. 
 
-3. The general setup for this implementation of LTOP relies on five major steps laid out in short, simple scripts. Each of these scripts call functions in the [modules library](https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/LTOP_modules.js) to do the work. Ideally, the user does not need to look at the modules script if they don't want to. 
+3. The general setup for this implementation of LTOP relies on five major steps laid out in short, simple scripts. Each of these scripts call functions in the [modules library](https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/LTOP_modules.js) to do the work. Ideally, the user does not need to look at the modules script if they don't want to. In the most recent version of the workflow, these scripts also reference a param file that simplifies calling of functions by collecting all user defined arguments in one place so they do not need to be added/updated in each script every time the workflow is run. 
 
 4. Most of the heavy lifting is done in GEE but a few intermediate steps are conducted in Python. It is suggested that you [create a dedicated conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands) for these steps. It should not be an issue but note that it must be a 3.x env for the LTOP scripts to work. 
 
@@ -45,9 +47,9 @@ Thus, the first step is to organize our study area into patches.  We use GEE's S
 For more information on the background, potential pitfalls etc. see the associated [Google Slides](https://docs.google.com/presentation/d/12hi10WmqZGdvJ9BjxSDukXQHGmzJNPAyJavObrmfVbg/edit?usp=sharing)
  
 #### Decisions to be made:
-- Spectral form of images to use in stack. We use Tasseled-cap imagery because it efficiently captures spectral variance, but you could use something else. [NOT SURE WHAT WE'RE TALKING ABOUT HERE]
+- Spectral form of images to use in stack. We use Tasseled-cap imagery because it efficiently captures spectral variance, but you could use something else. 
 - Years of imagery to use in stack.  We use the beginning year, a middle year, and the end year, but you could add more or use composites.  
-- The seed spacing for the SNIC algorithm.  The seeds are the spatial origin of the SNIC patches, and a tighter spacing will result in smaller patches. [CHANGING THIS IS NOT CURRENTLY SUPPORTED!!]
+- The seed spacing for the SNIC algorithm.  The seeds are the spatial origin of the SNIC patches, and a tighter spacing will result in smaller patches. 
 
 #### Outputs:
 - From this script we get a seed image, which represents the starting point of each patch. The seed image has several bands that point to mean spectral values of that seed's patch. 

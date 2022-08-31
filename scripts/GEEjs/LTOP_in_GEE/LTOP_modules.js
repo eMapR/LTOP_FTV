@@ -5,7 +5,7 @@
 //########################################################################################################
 
 
-// date: 2022-07-19
+// date: 2022-07-19 
 // author: Peter Clary        | clarype@oregonstate.edu
 //         Robert Kennedy     | rkennedy@coas.oregonstate.edu
 //         Ben Roberts-Pierel | robertsb@oregonstate.edu
@@ -113,13 +113,12 @@ var subsetFC = function(fc,grid_pts_max){
 //there is an issue where GEE complains if we straight convert pixels to points because there are too many. Try tiling the image and converting those first. 
 var splitPixImg = function(means_img,grid,pts_per_tile){
   //we map over the grid tiles, subsetting the image
-  var num_pts = pts_per_tile;
   var tile_pts = grid.map(function(feat){
   var tile_bounds = feat.geometry().buffer(-250); //could be changed
   var img_tile = means_img.clip(tile_bounds); //remove this if it errors 
   var pts = pixelsToPts(means_img,tile_bounds); 
   //try subsetting the points here before putting them back together to reduce the size of the dataset 
-  pts = subsetFC(pts,num_pts); 
+  pts = subsetFC(pts,pts_per_tile); 
   return pts;  
   }); 
   return tile_pts.flatten(); 
@@ -147,8 +146,8 @@ var samplePts = function(pts,img){
 //note also that the band structure is different in this version than what's generated in QGIS
 
 //train a kmeans model 
-var trainKmeans = function(snic_cluster_pts,num_clusters){
-  var training = ee.Clusterer.wekaCascadeKMeans({minClusters:num_clusters, maxClusters:num_clusters}).train({ 
+var trainKmeans = function(snic_cluster_pts,min_clusters,max_clusters){
+  var training = ee.Clusterer.wekaCascadeKMeans({minClusters:min_clusters,maxClusters:max_clusters}).train({ 
     features: snic_cluster_pts, 
     //real names:["B1_mean", "B2_mean",  "B3_mean",  "B4_mean",  "B5_mean",  "B7_mean",  "B1_1_mean",  "B2_1_mean",  "B3_1_mean",  "B4_1_mean",  "B5_1_mean","B7_1_mean",  "B1_2_mean",  "B2_2_mean",  "B3_2_mean",  "B4_2_mean",  "B5_2_mean",  "B7_2_mean"]
     inputProperties:["B1_mean", "B2_mean",  "B3_mean",  "B4_mean",  "B5_mean",  "B7_mean",  "B1_1_mean",  "B2_1_mean",  "B3_1_mean",  "B4_1_mean",  "B5_1_mean","B7_1_mean",  "B1_2_mean",  "B2_2_mean",  "B3_2_mean",  "B4_2_mean",  "B5_2_mean",  "B7_2_mean"]
@@ -158,11 +157,11 @@ var trainKmeans = function(snic_cluster_pts,num_clusters){
 }; 
 
 //run the kmeans model - note that the inputs are being created in the snic section in the workflow document 
-var runKmeans = function(snic_cluster_pts,num_clusters,aoi,snic_output){
+var runKmeans = function(snic_cluster_pts,min_clusters,max_clusters,aoi,snic_output){
   //train a kmeans model
-  var trainedModel = trainKmeans(snic_cluster_pts,num_clusters); 
+  var trainedModel = trainKmeans(snic_cluster_pts,min_clusters,max_clusters); 
   //call the trained kmeans model 
-  var clusterSeed = snic_output.cluster(trainedModel).clip(aoi);
+  var clusterSeed = snic_output.cluster(trainedModel)//.clip(aoi); changed 8/23/22
   return clusterSeed; 
 }; 
 
@@ -440,7 +439,7 @@ var filterTable = function(pt_list,index){
 //////////////////////////////////////////////////////
 //////////////////////////////// 01 SNIC /////////////
 //////////////////////////////////////////////////////
-function snic01 (snic_composites,aoi,grid_scale,epsg,patch_size,pts_per_tile){
+function snic01 (snic_composites,aoi,random_pts,patch_size){
   //run the SNIC algorithm   
   var SNICoutput = runSNIC(snic_composites,aoi,patch_size); 
   var SNICpixels = SNICmeansImg(SNICoutput,aoi); 
@@ -450,17 +449,16 @@ function snic01 (snic_composites,aoi,grid_scale,epsg,patch_size,pts_per_tile){
   var SNICmeans = SNICpixels.toInt32().clip(aoi); //previously SNIC_means_image
   
   //try just creating some random points 
-  // var snicPts = ee.FeatureCollection.randomPoints({
-  //   region:aoi,
-  //   points:20000,
-  //   seed:10
-  //   })
-  
+  var snicPts = ee.FeatureCollection.randomPoints({
+    region:aoi,
+    points:random_pts,
+    seed:10
+    });  
   // snicPts = samplePts(snicPts,SNICimagery); 
   //create a grid to subtile the snic images
-  var grid = aoi.coveringGrid(epsg, grid_scale).filterBounds(aoi); //the int here is a bit variable
+  // var grid = aoi.coveringGrid(epsg, grid_scale).filterBounds(aoi); //the int here is a bit variable
   
-  var snicPts = splitPixImg(SNICmeans.select('clusters'),grid,pts_per_tile); 
+  // var snicPts = splitPixImg(SNICmeans.select('clusters'),grid,pts_per_tile); 
   
   // do the sampling 
   snicPts = samplePts(snicPts,SNICimagery); 
@@ -475,16 +473,22 @@ exports.snic01 = snic01;
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// 02 kMeans //////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-function kmeans02 (snicPts,SNICimagery,aoi){
+function kmeans02_1 (snicPts,SNICimagery,aoi,min_clusters,max_clusters){
   //take the snic outputs from the previous steps and then train and run a kmeans model
   var snicKmeansImagery = ee.Image(SNICimagery).select(["B1_mean", "B2_mean",  "B3_mean",  "B4_mean",  "B5_mean",  "B7_mean",  "B1_1_mean",  "B2_1_mean",  "B3_1_mean",  "B4_1_mean",  "B5_1_mean","B7_1_mean",  "B1_2_mean",  "B2_2_mean",  "B3_2_mean",  "B4_2_mean",  "B5_2_mean",  "B7_2_mean"]); 
-  var kMeansImagery = runKmeans(snicPts, 5001,aoi,snicKmeansImagery); 
-  var kMeansPoints = selectKmeansPts(kMeansImagery,aoi); 
-  // return kMeansPoints
-  return ee.List([kMeansImagery,kMeansPoints]); 
+  var kMeansImagery = runKmeans(snicPts,min_clusters,max_clusters,aoi,snicKmeansImagery); 
+  // var kMeansPoints = selectKmeansPts(kMeansImagery,aoi); 
+  return kMeansImagery
+  // return ee.List([kMeansImagery,kMeansPoints]); 
 }
 
-exports.kmeans02 = kmeans02; 
+function kmeans02_2 (kmeans_imagery,aoi){
+  var kMeansPoints = selectKmeansPts(kmeans_imagery,aoi); 
+  return kMeansPoints; 
+}
+
+exports.kmeans02_1 = kmeans02_1; 
+exports.kmeans02_2 = kmeans02_2; 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// 03 abstractSampler /////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////

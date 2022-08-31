@@ -4,7 +4,7 @@
 //#                                                                                                    #\\
 //########################################################################################################
 
-// date: 2020-12-10
+// date: 2020-12-10  
 // author: Peter Clary        | clarype@oregonstate.edu
 //         Robert Kennedy     | rkennedy@coas.oregonstate.edu
 //         Ben Roberts-Pierel | robertsb@oregonstate.edu
@@ -14,33 +14,15 @@
 //////////////////////////////// Import modules /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
-var ltop = require('users/emaprlab/public:Modules/LTOP_modules.js'); 
+var ltgee = require('users/ak_glaciers/adpc_servir_LTOP:modules/LandTrendr.js'); 
+var ltop = require('users/ak_glaciers/adpc_servir_LTOP:modules/LTOP_modules.js'); 
+var params = require('users/ak_glaciers/adpc_servir_LTOP:modules/params.js'); 
+
+//if you are using medoid composites also specify dates and masking params (see docs and param file). 
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// Time, space and masking params /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-var place = 'Cambodia'; 
-var startYear = 1990; 
-var endYear = 2021; 
-var grid_scale = 20000; 
-var seed_spacing = 10; 
-var pts_per_tile = 50; 
-var image_source = 'servir'; 
-var epsg = 'EPSG:4326'; 
-var assets_root = 'users/ak_glaciers/'; 
-var assets_child = 'servir_training_tests'; 
-var aoi = ee.FeatureCollection("USDOS/LSIB/2017").filter(ee.Filter.eq('COUNTRY_NA',place)).geometry().buffer(5000);
-
-//if you are using medoid composites also specify: 
-//these date windows are specific to the place that you're working on
-var startDate = '11-20'; 
-var endDate =   '03-10'; 
-var masked = ['cloud', 'shadow']; //powermask?? its new and has magic powers ... RETURN TO THIS AND ADD MORE DETAIL
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// Landsat Composites /////////////////////////////////////////////////
+//////////////////////////////////////// Composites /////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 var annualSRcollection; 
 
@@ -66,21 +48,19 @@ var LandsatComposites = imageEnd.addBands(imageMid).addBands(imageStart);
 //////////////////////////////// Call the functions /////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // 1. run the snic algorithm 
-var snic_output01 = ltop.snic01(LandsatComposites,aoi,grid_scale,epsg,seed_spacing,pts_per_tile); 
-
-var str_start = ee.Number(startYear).format().getInfo(); 
+var snic_output01 = ltop.snic01(LandsatComposites,params.aoi,params.randomPts,params.seedSpacing); 
 
 Export.table.toAsset({
               collection: snic_output01.get(0), 
-              description:"LTOP_SNIC_pts_"+place+"_c2_mapped_per_tile_"+str_start, 
-              assetId:assets_child+"/LTOP_SNIC_pts_"+place+"_c2_mapped_tile_"+str_start, 
+              description:"LTOP_SNIC_pts_"+params.place+"_c2_"+params.randomPts.toString()+"_pts_"+params.startYear.toString(), 
+              assetId:assets_child+"/LTOP_SNIC_pts_"+params.place+"_c2_"+params.randomPts.toString()+"_pts_"+params.startYear.toString(), 
               
   }); 
   
 Export.image.toAsset({
               image: snic_output01.get(1), 
-              description:"LTOP_SNIC_imagery_"+place+"_c2_mapped_tile_"+str_start, 
-              assetId:assets_child+"/LTOP_SNIC_imagery_"+place+"_c2_mapped_tile_"+str_start, 
+              description:"LTOP_SNIC_imagery_"+params.place+"_c2_"+params.randomPts.toString()+"_pts_"+params.startYear.toString(), 
+              assetId:assets_child+"/LTOP_SNIC_imagery_"+params.place+"_c2_"+params.randomPts.toString()+"_pts_"+params.startYear.toString(), 
               region:aoi, 
               scale:30,
               maxPixels:1e13, 
