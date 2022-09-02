@@ -14,8 +14,11 @@
 //This library holds modules for running an optimized version of the LandTrendr algorithm. The process addresses an 
 //issue of paramaterizing the LT algorithm for different types of land cover/ land use. 
 
-var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
+var ltgee = require('users/ak_glaciers/adpc_servir_LTOP:modules/LandTrendr.js'); 
+var params = require('users/ak_glaciers/adpc_servir_LTOP:modules/params.js'); 
 
+var version = params.version; 
+exports.version = version; 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////Build an imageCollection from SERVIR comps /////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////

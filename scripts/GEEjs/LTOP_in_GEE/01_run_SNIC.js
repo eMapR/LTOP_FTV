@@ -4,7 +4,7 @@
 //#                                                                                                    #\\
 //########################################################################################################
 
-// date: 2020-12-10  
+// date: 2022-09-02  
 // author: Peter Clary        | clarype@oregonstate.edu
 //         Robert Kennedy     | rkennedy@coas.oregonstate.edu
 //         Ben Roberts-Pierel | robertsb@oregonstate.edu
@@ -18,8 +18,7 @@ var ltgee = require('users/ak_glaciers/adpc_servir_LTOP:modules/LandTrendr.js');
 var ltop = require('users/ak_glaciers/adpc_servir_LTOP:modules/LTOP_modules.js'); 
 var params = require('users/ak_glaciers/adpc_servir_LTOP:modules/params.js'); 
 
-//if you are using medoid composites also specify dates and masking params (see docs and param file). 
-
+print('You are currently running version: ',params.version,' of the LTOP workflow'); 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////// Composites /////////////////////////////////////////////////

@@ -4,7 +4,7 @@
 //#                                                                                                    #\\
 //########################################################################################################
 
-// date: 2022-07-19
+// date: 2022-09-02
 // author: Peter Clary        | clarype@oregonstate.edu
 //         Robert Kennedy     | rkennedy@coas.oregonstate.edu
 //         Ben Roberts-Pierel | robertsb@oregonstate.edu
@@ -14,9 +14,11 @@
 //////////////////////////////// Import modules /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
-var ltop = require('users/emaprlab/public:Modules/LTOP_modules.js'); 
+var ltgee = require('users/ak_glaciers/adpc_servir_LTOP:modules/LandTrendr.js'); 
+var ltop = require('users/ak_glaciers/adpc_servir_LTOP:modules/LTOP_modules.js'); 
 var params = require('users/ak_glaciers/adpc_servir_LTOP:modules/params.js'); 
+
+print('You are currently running version: ',params.version,' of the LTOP workflow'); 
 
 //naming convention based on previously generated image
 var cluster_img = ee.Image(params.assetsRoot+params.assetsChild+"/LTOP_KMEANS_cluster_image_"+params.randomPts.toString()+"_pts_"+params.maxClusters.toString()+"_max_"+params.minClusters.toString()+"_min_clusters_"+params.place+"_c2_"+params.startYear.toString());

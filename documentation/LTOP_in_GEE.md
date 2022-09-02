@@ -28,7 +28,7 @@ Overview of script platform distribution (GEE vs Python):
 
 3. We would suggest that you create a dedicated folder in your GEE home directory to hold associated scripts and a dedicated folder in your assets to hold intermediate assets during this process. You can specify where you want this assets folder to be by changing asset root and child arguments. 
 
-3. The general setup for this implementation of LTOP relies on five major steps laid out in short, simple scripts. Each of these scripts call functions in the [modules library](https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/LTOP_modules.js) to do the work. Ideally, the user does not need to look at the modules script if they don't want to. In the most recent version of the workflow, these scripts also reference a param file that simplifies calling of functions by collecting all user defined arguments in one place so they do not need to be added/updated in each script every time the workflow is run. 
+3. The general setup for this implementation of LTOP relies on five major steps laid out in short, simple scripts. Each of these scripts call functions in the [modules library](https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/LTOP_modules.js) to do the work. Ideally, the user does not need to look at the modules script if they don't want to. In the most recent version of the workflow, these scripts also reference a param file that simplifies calling of functions by collecting all user defined arguments in one place so they do not need to be added/updated in each script every time the workflow is run. The param file controls all inputs to the scripts and is located at: https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/params.js
 
 4. Most of the heavy lifting is done in GEE but a few intermediate steps are conducted in Python. It is suggested that you [create a dedicated conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands) for these steps. It should not be an issue but note that it must be a 3.x env for the LTOP scripts to work. 
 
@@ -74,17 +74,18 @@ For more information on the background, potential pitfalls etc. see the associat
 Now we cluster the SNIC patches into similar land class categories. For more information on this process see the associated [Google Slides](https://docs.google.com/presentation/d/1nQDPUaeA5PX-_2z5P1-vAmbgDiZwgLTPdkx0mqeKHFU/edit?usp=sharing)
 
 #### Decisions to be made: 
-- Kmeans algorithm itself can be changed (although not currently without changing module code)
-- Kmeans algorithm arguments could be adjusted but are (mostly) set to defaults
+- Kmeans algorithm itself can be changed. Currently, the user can control the min and max cluster args
 - The maxClusters argument could be raised or lowered 
+- It is unknown how many clusters is the right number of clusters
 
 #### Outputs
-- kmeans cluster image 
-- kmeans cluster id points (FeatureCollection)
+- kmeans cluster image (02_1)
+- kmeans cluster id points (FeatureCollection) (02_2)
 
 #### Steps 
 	
-	1. Script location: https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/02_run_kMeans.js
+	1. Script locations: https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/02_1_run_kMeans.js 
+						 https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/02_2_run_kMeans.js 
 
 	2. Make sure SNIC output is finished running. 
 
@@ -97,13 +98,13 @@ Now we cluster the SNIC patches into similar land class categories. For more inf
 With the sample of Kmeans Cluster points, a point for each cluster ID, sample a time series of Landsat Imagery (B5, TCB, TCW, NBR, and NDVI). This sample is exported as a table from GEE and used to create abstract images. More on abstract images, how they work and why we create them in the associated [Google Slides](https://docs.google.com/presentation/d/1blIvQGvP5WWMaOtqvdfUT_trFYKiCqWr6R9214BXwHg/edit?usp=sharing).   
 
 #### Decisions to be made: 
-- N/A
+- Do we want to move this thing to GEE or move more things to Python
+- Can we reduce the size of the inputs (CSVs) at least by simplification?
 
 #### Outputs
 - large CSV that contains different runs of LT
 
 #### Steps
-
 
 	1. Script location: https://github.com/eMapR/LTOP_FTV/blob/master/scripts/GEEjs/LTOP_in_GEE/03_abstract_sampling.js
 

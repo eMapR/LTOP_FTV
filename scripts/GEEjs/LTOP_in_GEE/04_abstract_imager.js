@@ -4,7 +4,7 @@
 //#                                                                                                    #\\
 //########################################################################################################
 
-// date: 2022-07-19
+// date: 2022-09-02
 // author: Peter Clary        | clarype@oregonstate.edu
 //         Robert Kennedy     | rkennedy@coas.oregonstate.edu
 //         Ben Roberts-Pierel | robertsb@oregonstate.edu
@@ -17,6 +17,8 @@
 var ltgee = require('users/emaprlab/public:Modules/LandTrendr.js'); 
 var ltop = require('users/emaprlab/public:Modules/LTOP_modules.js'); 
 var params = require('users/ak_glaciers/adpc_servir_LTOP:modules/params.js'); 
+
+print('You are currently running version: ',params.version,' of the LTOP workflow'); 
 
 var abstractImagesPath = params.assetsRoot+params.assetsChild+'/revised_abstract_image_'
 
