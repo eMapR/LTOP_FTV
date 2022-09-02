@@ -27,8 +27,7 @@ var kmeans_output02_1 = ltop.kmeans02_1(ee.FeatureCollection(params.assetsRoot+p
                                 params.aoi,
                                 params.minClusters,
                                 params.maxClusters); 
-var kmeans_output02_2 = ltop.kmeans02_2(kmeans_output02_1); 
-
+ 
 //export the kmeans output image to an asset
 Export.image.toAsset({
             image: kmeans_output02_1,//kmeans_output02.get(0), 
@@ -37,11 +36,4 @@ Export.image.toAsset({
             region:params.aoi, 
             scale:30,
             maxPixels:1e13, 
-}); 
-
-//export a fc with one point for every unique cluster id in the kmeans output
-Export.table.toAsset({
-            collection:kmeans_output02_2,
-            description: 'LTOP_KMEANS_stratified_points_'+params.maxClusters.toString()+'_max_'+params.minClusters.toString()+'_min_clusters_'+params.place+'_c2_'+params.startYear.toString(), 
-            assetId:params.assetsChild+'/LTOP_KMEANS_stratified_points_'+params.maxClusters.toString()+'_max_'+params.minClusters.toString()+'_min_clusters_'+params.place+'_c2_'+params.startYear.toString()
 }); 

@@ -32,9 +32,9 @@ Overview of script platform distribution (GEE vs Python):
 
 4. Most of the heavy lifting is done in GEE but a few intermediate steps are conducted in Python. It is suggested that you [create a dedicated conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands) for these steps. It should not be an issue but note that it must be a 3.x env for the LTOP scripts to work. 
 
-5. Note that the script locations given below are based on script locations and directory structure on GitHub. When you clone the repo to a local directory you will need to update these paths wherever they are required (mostly the python-based steps towards the end of the workflow). 
+5. Note that the script locations given below are based on script locations and directory structure on GitHub. When you clone the repo to a local directory you will need to update these paths wherever they are required (mostly the python-based steps towards the end of the workflow). For the GEE scripts, you can also reference the public repo cited in point 1 above. 
 
-6. Unfortunately, until GEE changes their GitHub structure, we suggest that you copy and paste the GEE code from your local directory after cloning into a GEE JavaScript window. There are other ways of doing that but this is fairly straightforward. 
+6. Unfortunately, until GEE changes their GitHub structure, we suggest that you copy and paste the GEE code from your local directory after cloning into a GEE JavaScript window. There are other ways of doing that but this is fairly straightforward. This can also be avoided by using the public repo. 
 
 ## LTOP Work Flow (Step by Step) 
 
