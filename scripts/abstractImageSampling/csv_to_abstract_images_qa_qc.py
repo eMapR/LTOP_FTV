@@ -1,3 +1,4 @@
+import csv
 from osgeo import gdal
 import osgeo.ogr
 import osgeo.osr
@@ -28,7 +29,7 @@ Script assumptions:
     
 '''
 
-def create_rasterio_profile(out_rows, out_cols, num_bands=5):
+def create_rasterio_profile(out_rows, out_cols, num_bands=6):
     '''Create the rasterio export profile. '''
 
     # Set the properties
@@ -51,10 +52,10 @@ if __name__ == "__main__":
     ######################## PARAMETERS TO BE SET BY USER ####################
     
     # Load in the "abstract images" csv
-    input_data = pd.read_csv("/vol/v1/proj/LTOP_mekong/csvs/01_abstract_images/troubleshooting/LTOP_Cambodia_Abstract_Sample_annualSRcollection_NBRTCWTCGNDVIB5_c2_1990_start.csv")
+    input_data = pd.read_csv("/vol/v1/proj/LTOP_mekong/csvs/01_abstract_images/GEE_LTOP/LTOP_servir_comps_revised_Abstract_Sample_annualSRcollection_NBRTCWTCGNDVIB5_c2_1990_start.csv")
     # Define the output directory for the abstract images and the shapefile
-    output_directory_raster = "/vol/v1/proj/LTOP_mekong/rasters/03_AbstractImage/cambodia_troubleshooting/"
-    output_directory_shp = "/vol/v1/proj/LTOP_mekong/vectors/03_abstract_image_pixel_points/cambodia_troubleshooting/"
+    output_directory_raster = "/vol/v1/proj/LTOP_mekong/rasters/03_AbstractImage/servir_comps_qa_qc/"
+    output_directory_shp = "/vol/v1/proj/LTOP_mekong/vectors/03_abstract_image_pixel_points/servir_comps_domain_qa_qc/"
 
     if not os.path.exists(output_directory_raster): 
         os.mkdir(output_directory_raster)
@@ -87,10 +88,11 @@ if __name__ == "__main__":
         
         # Filter 1 years worth of data from the pandas dataframe
         current_data = input_data[input_data['year'] == current_year]
-        
+        print('current_data',current_data)
         # Sort the dataframe by the "id" field (so that it is always ordered the same way)
         # and then drop the id field and the year field 
-        csv_to_raster_input = current_data.sort_values(by="cluster_id")[['NBR', 'NDVI', 'TCG', 'TCW', 'B5']]
+        csv_to_raster_input = current_data.sort_values(by="cluster_id")[['cluster_id','NBR', 'NDVI', 'TCG', 'TCW', 'B5']]
+        print(csv_to_raster_input.head())
 
         # Convert the data into a numpy array where each       
         # Array_values has the following shape (after the below code)
@@ -98,14 +100,15 @@ if __name__ == "__main__":
 
         #print(csv_to_raster_input.to_numpy())
         array_values = csv_to_raster_input.to_numpy()[:,:,np.newaxis]
+        print(array_values)
         array_values = np.swapaxes(array_values, 2, 1)
         
         # Reshape the array into something more square
-        array_values = np.reshape(array_values, [num_cols, num_rows, 5])
-        
+        array_values = np.reshape(array_values, [num_cols, num_rows, 6])
+        print(array_values)
         # Reshape the dimensions before writing out the data
         output_array = np.moveaxis(array_values, [0, 1, 2], [2, 1, 0]).astype('int16') 
-        
+        print(output_array)
         # Write out the abstract image
         with rasterio.Env():
             
